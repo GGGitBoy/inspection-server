@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: inspection-agent
+  namespace: cattle-system
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      name: inspection-agent
+  template:
+    metadata:
+      labels:
+        name: inspection-agent
+    spec:
+      containers:
+        - image: dockerrrboy/inspection-agent
+          imagePullPolicy: IfNotPresent
+          name: inspection-agent-container
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: true
+            privileged: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /usr/bin/docker
+              name: docker-bin
+            - mountPath: /var/lib/docker
+              name: docker-lib
+            - mountPath: /etc/docker
+              name: docker-etc
+            - mountPath: /opt
+              name: inspection-agent-sh
+      dnsPolicy: ClusterFirst
+      hostNetwork: true
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: inspection-agent
+      serviceAccountName: inspection-agent
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - hostPath:
+            path: /usr/bin/docker
+            type: ""
+          name: docker-bin
+        - hostPath:
+            path: /var/lib/docker
+            type: ""
+          name: docker-lib
+        - hostPath:
+            path: /etc/docker
+            type: ""
+          name: docker-etc
+        - configMap:
+            defaultMode: 448
+            name: inspection-agent-sh
+            optional: false
+          name: inspection-agent-sh
+  updateStrategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
