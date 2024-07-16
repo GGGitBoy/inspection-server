@@ -346,6 +346,9 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 			}
 
 			str = re.FindAllString(string(logs), -1)
+			if str == nil {
+				str = []string{}
+			}
 			mu.Lock()
 			pods = append(pods, &apis.Pod{
 				Name: pod.Name,
