@@ -33,6 +33,7 @@ type WorkloadData struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 	Regexp    string `json:"regexp"`
+	Core      bool   `json:"core"`
 }
 
 type Node struct {
@@ -43,6 +44,7 @@ type Node struct {
 type Command struct {
 	Description string `json:"description"`
 	Command     string `json:"command"`
+	Core        bool   `json:"core"`
 }
 
 func NewConfig() *Config {
@@ -69,10 +71,12 @@ func Register() error {
 				{
 					Name:      "cattle-cluster-agent",
 					Namespace: "cattle-system",
+					Core:      false,
 				},
 				{
 					Name:      "rancher-webhook",
 					Namespace: "cattle-system",
+					Core:      true,
 				},
 				{
 					Name:      "calico-kube-controllers",
@@ -122,10 +126,17 @@ func Register() error {
 					{
 						Description: "Kubelet Health Check",
 						Command:     "curl -sS http://localhost:10248/healthz",
+						Core:        true,
 					},
 					{
 						Description: "API Server Ready Check",
 						Command:     "kubectl get --raw='/readyz'",
+						Core:        false,
+					},
+					{
+						Description: "Test Error command",
+						Command:     "test-error",
+						Core:        false,
 					},
 				},
 			},

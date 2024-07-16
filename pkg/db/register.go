@@ -11,7 +11,6 @@ var (
 			id TEXT NOT NULL PRIMARY KEY,
 			rating INT,
 			report_time TEXT,
-			warnings TEXT,
 			data TEXT
 		);`,
 		`CREATE TABLE IF NOT EXISTS plan (

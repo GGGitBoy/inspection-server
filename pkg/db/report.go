@@ -8,7 +8,7 @@ import (
 	"log"
 )
 
-func CreateReport(id, reportTime, warnings, data string, rating int) error {
+func CreateReport(id, reportTime, data string, rating int) error {
 	DB, err := sql.Open(sqliteDriver, sqliteName)
 	if err != nil {
 		log.Fatal(err)
@@ -19,12 +19,12 @@ func CreateReport(id, reportTime, warnings, data string, rating int) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	stmt, err := tx.Prepare("INSERT INTO report(id, rating, report_time, warnings, data) VALUES(?, ?, ?, ?, ?)")
+	stmt, err := tx.Prepare("INSERT INTO report(id, rating, report_time, data) VALUES(?, ?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(id, rating, reportTime, warnings, data)
+	_, err = stmt.Exec(id, rating, reportTime, data)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,12 +40,12 @@ func GetReport(reportID string) (*apis.Report, error) {
 	}
 	defer DB.Close()
 
-	row := DB.QueryRow("SELECT id, rating, report_time, warnings, data FROM report WHERE id = ? LIMIT 1", reportID)
+	row := DB.QueryRow("SELECT id, rating, report_time, data FROM report WHERE id = ? LIMIT 1", reportID)
 
-	var id, reportTime, warnings, data string
+	var id, reportTime, data string
 	var rating int
 	report := apis.NewReport()
-	err = row.Scan(&id, &rating, &reportTime, &warnings, &data)
+	err = row.Scan(&id, &rating, &reportTime, &data)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			fmt.Println("没有找到匹配的数据")
@@ -73,16 +73,9 @@ func GetReport(reportID string) (*apis.Report, error) {
 			report.Kubernetes[name] = k
 		}
 
-		var dataWarning []apis.Warning
-		err = json.Unmarshal([]byte(warnings), &dataWarning)
-		if err != nil {
-			return nil, err
-		}
-
 		report.ID = id
 		report.Global.Rating = rating
 		report.Global.ReportTime = reportTime
-		report.Global.Warnings = dataWarning
 	}
 
 	return report, nil

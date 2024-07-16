@@ -6,13 +6,6 @@ import (
 	restclient "k8s.io/client-go/rest"
 )
 
-type Inspection struct {
-	Clients map[string]*Client `json:"clients"`
-	Reports []*Report          `json:"core"`
-	Plans   []*Plan            `json:"plans"`
-	Records []*Record          `json:"record"`
-}
-
 type Client struct {
 	DynamicClient *dynamic.DynamicClient `json:"dynamic_client"`
 	Clientset     *kubernetes.Clientset  `json:"clientset"`
@@ -26,27 +19,42 @@ type Report struct {
 }
 
 type Global struct {
-	Rating     int       `json:"rating"`
-	ReportTime string    `json:"report_time"`
-	Warnings   []Warning `json:"warnings"`
+	Rating     int    `json:"rating"`
+	ReportTime string `json:"report_time"`
 }
 
-type Warning struct {
-	Title   string `json:"title"`
-	Message string `json:"message"`
-	Type    int    `json:"type"`
+type Inspection struct {
+	Title    string `json:"title"`
+	Message  string `json:"message"`
+	Resource string `json:"resource"`
+	Level    int    `json:"level"`
+	Pass     bool   `json:"pass"`
 }
 
-type Kubernetes struct {
+type ClusterCore struct {
+	Workloads   *Workload     `json:"workloads"`
+	Nodes       []*Node       `json:"nodes"`
+	Inspections []*Inspection `json:"inspections"`
+}
+
+type ClusterNode struct {
+	Nodes       []*Node       `json:"nodes"`
+	Inspections []*Inspection `json:"inspections"`
+}
+
+type ClusterResource struct {
 	Workloads             *Workload                `json:"workloads"`
-	Nodes                 []*Node                  `json:"nodes"`
 	Namespace             []*Namespace             `json:"namespace"`
 	PersistentVolumeClaim []*PersistentVolumeClaim `json:"persistent_volume_claim"`
 	Service               []*Service               `json:"service"`
 	Ingress               []*Ingress               `json:"ingress"`
+	Inspections           []*Inspection            `json:"inspections"`
 }
 
-type MetaData struct {
+type Kubernetes struct {
+	ClusterCore     *ClusterCore     `json:"cluster_core"`
+	ClusterNode     *ClusterNode     `json:"cluster_node"`
+	ClusterResource *ClusterResource `json:"cluster_resource"`
 }
 
 type Workload struct {
@@ -149,7 +157,11 @@ func NewReport() *Report {
 }
 
 func NewKubernetes() *Kubernetes {
-	return &Kubernetes{
+	return &Kubernetes{}
+}
+
+func NewClusterCore() *ClusterCore {
+	return &ClusterCore{
 		Workloads: &Workload{
 			Deployment:  []*WorkloadData{},
 			Statefulset: []*WorkloadData{},
@@ -157,11 +169,32 @@ func NewKubernetes() *Kubernetes {
 			Job:         []*WorkloadData{},
 			Cronjob:     []*WorkloadData{},
 		},
-		Nodes:                 []*Node{},
+		Nodes:       []*Node{},
+		Inspections: []*Inspection{},
+	}
+}
+
+func NewClusterNode() *ClusterNode {
+	return &ClusterNode{
+		Nodes:       []*Node{},
+		Inspections: []*Inspection{},
+	}
+}
+
+func NewClusterResource() *ClusterResource {
+	return &ClusterResource{
+		Workloads: &Workload{
+			Deployment:  []*WorkloadData{},
+			Statefulset: []*WorkloadData{},
+			Daemonset:   []*WorkloadData{},
+			Job:         []*WorkloadData{},
+			Cronjob:     []*WorkloadData{},
+		},
 		Namespace:             []*Namespace{},
 		PersistentVolumeClaim: []*PersistentVolumeClaim{},
 		Service:               []*Service{},
 		Ingress:               []*Ingress{},
+		Inspections:           []*Inspection{},
 	}
 }
 
@@ -185,6 +218,50 @@ func NewPods() []*Pod {
 	return []*Pod{}
 }
 
+func NewNodes() []*Node {
+	return []*Node{}
+}
+
+func NewWorkload() *Workload {
+	return &Workload{
+		Deployment:  []*WorkloadData{},
+		Statefulset: []*WorkloadData{},
+		Daemonset:   []*WorkloadData{},
+		Job:         []*WorkloadData{},
+		Cronjob:     []*WorkloadData{},
+	}
+}
+
 func NewWorkloadDatas() []*WorkloadData {
 	return []*WorkloadData{}
+}
+
+func NewNamespaces() []*Namespace {
+	return []*Namespace{}
+}
+
+func NewPersistentVolumeClaims() []*PersistentVolumeClaim {
+	return []*PersistentVolumeClaim{}
+}
+
+func NewServices() []*Service {
+	return []*Service{}
+}
+
+func NewIngress() []*Ingress {
+	return []*Ingress{}
+}
+
+func NewInspections() []*Inspection {
+	return []*Inspection{}
+}
+
+func NewInspection(title, message, resources string, level int, pass bool) *Inspection {
+	return &Inspection{
+		Title:    title,
+		Message:  message,
+		Resource: resources,
+		Level:    level,
+		Pass:     pass,
+	}
 }

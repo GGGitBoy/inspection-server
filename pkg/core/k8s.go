@@ -15,78 +15,104 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/utils/strings/slices"
 	"os"
 	"regexp"
 	"sync"
-	"time"
 )
 
-func GetGlobal(report *apis.Report) error {
-	report.Global.Warnings = []apis.Warning{
-		{Title: "红色警告", Message: "红色：影响 rancher 或者 集群运行的", Type: 3},
-		{Title: "黄色警告", Message: "黄色：不影响 rancher 或者 集群运行的，但是有风险的", Type: 2},
-		{Title: "灰色警告", Message: "灰色：没有太大风险的，不过最好也可以处理的", Type: 1},
+//func GetGlobal(report *apis.Report) error {
+//	report.Global.Warnings = []apis.Warning{
+//		{Title: "红色警告", Message: "红色：影响 rancher 或者 集群运行的", Type: 3},
+//		{Title: "黄色警告", Message: "黄色：不影响 rancher 或者 集群运行的，但是有风险的", Type: 2},
+//		{Title: "灰色警告", Message: "灰色：没有太大风险的，不过最好也可以处理的", Type: 1},
+//	}
+//
+//	var rating int
+//	for _, w := range report.Global.Warnings {
+//		if w.Type > rating {
+//			rating = w.Type
+//		}
+//	}
+//
+//	report.Global.ReportTime = time.Now().Format(time.DateTime)
+//	report.Global.Rating = rating
+//
+//	return nil
+//}
+
+func GetNodes(name string, client *apis.Client) ([]*apis.Node, []*apis.Node, []*apis.Inspection, []*apis.Inspection, error) {
+	coreNodeArray := apis.NewNodes()
+	nodeNodeArray := apis.NewNodes()
+
+	coreInspections := apis.NewInspections()
+	nodeInspections := apis.NewInspections()
+
+	globalConfig, err := config.ReadConfigFile()
+	if err != nil {
+		return nil, nil, nil, nil, err
 	}
-
-	var rating int
-	for _, w := range report.Global.Warnings {
-		if w.Type > rating {
-			rating = w.Type
-		}
-	}
-
-	report.Global.ReportTime = time.Now().Format(time.DateTime)
-	report.Global.Rating = rating
-
-	return nil
-}
-
-func GetNodes(client *apis.Client) ([]*apis.Node, error) {
-	var nodeArray []*apis.Node
 
 	set := labels.Set(map[string]string{"name": "inspection-agent"})
 	podList, err := client.Clientset.CoreV1().Pods(common.InspectionNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: set.String()})
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	for _, pod := range podList.Items {
-		node, err := client.Clientset.CoreV1().Nodes().Get(context.TODO(), pod.Spec.NodeName, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
+		for _, n := range globalConfig.Kubernetes[name].Nodes {
+			if slices.Contains(n.Names, pod.Spec.NodeName) {
+				node, err := client.Clientset.CoreV1().Nodes().Get(context.TODO(), pod.Spec.NodeName, metav1.GetOptions{})
+				if err != nil {
+					return nil, nil, nil, nil, err
+				}
 
-		annotations := map[string]string{
-			"pod-limits":   node.Annotations["management.cattle.io/pod-limits"],
-			"pod-requests": node.Annotations["management.cattle.io/pod-requests"],
-		}
+				annotations := map[string]string{
+					"pod-limits":   node.Annotations["management.cattle.io/pod-limits"],
+					"pod-requests": node.Annotations["management.cattle.io/pod-requests"],
+				}
 
-		command := "/opt/inspection.sh"
-		stdout, stderr, err := ExecToPodThroughAPI(client.Clientset, client.Config, command, pod.Namespace, pod.Name, "inspection-agent-container")
-		if err != nil {
-			return nil, err
-		}
+				var commands []string
+				for _, c := range n.Commands {
+					commands = append(commands, c.Description+": "+c.Command)
+				}
 
-		var results []apis.CommandCheckResult
-		err = json.Unmarshal([]byte(stdout), &results)
-		if err != nil {
-			return nil, err
-		}
+				command := "/opt/inspection.sh"
+				stdout, stderr, err := ExecToPodThroughAPI(client.Clientset, client.Config, command, commands, pod.Namespace, pod.Name, "inspection-agent-container")
+				if err != nil {
+					return nil, nil, nil, nil, err
+				}
 
-		nodeArray = append(nodeArray, &apis.Node{
-			Name:        pod.Spec.NodeName,
-			Annotations: annotations,
-			Commands: &apis.Command{
-				Stdout: results,
-				Stderr: stderr,
-			},
-		})
+				var results []apis.CommandCheckResult
+				err = json.Unmarshal([]byte(stdout), &results)
+				if err != nil {
+					return nil, nil, nil, nil, err
+				}
+
+				nodeData := &apis.Node{
+					Name:        pod.Spec.NodeName,
+					Annotations: annotations,
+					Commands: &apis.Command{
+						Stdout: results,
+						Stderr: stderr,
+					},
+				}
+
+				//if n.Core {
+				//	coreNodeArray = append(coreNodeArray, nodeData)
+				//} else {
+				//	nodeNodeArray =  append(nodeNodeArray, nodeData)
+				//}
+				nodeNodeArray = append(nodeNodeArray, nodeData)
+				nodeInspections = append(nodeInspections, apis.NewInspection("node Inspection", "node Inspection message", "Node", 3, true))
+			}
+		}
 	}
 
-	return nodeArray, nil
+	return coreNodeArray, nodeNodeArray, coreInspections, nodeInspections, nil
 }
 
-func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, command string, namespace string, podName string, containerName string) (string, string, error) {
+func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, command string, commands []string, namespace string, podName string, containerName string) (string, string, error) {
 	req := clientset.CoreV1().RESTClient().
 		Post().
 		Resource("pods").
@@ -99,6 +125,10 @@ func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, c
 		Param("stderr", "true").
 		Param("tty", "false").
 		Param("command", command)
+
+	for _, c := range commands {
+		req.Param("command", c)
+	}
 
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
@@ -128,16 +158,16 @@ func (w *outputWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func GetWorkloads(name string, client *apis.Client) (*apis.Workload, error) {
-	deploymentArray := apis.NewWorkloadDatas()
-	daemonSetArray := apis.NewWorkloadDatas()
-	statefulSetArray := apis.NewWorkloadDatas()
-	jobArray := apis.NewWorkloadDatas()
-	//cronJobArray := apis.NewWorkloadDatas()
+func GetWorkloads(name string, client *apis.Client) (*apis.Workload, *apis.Workload, []*apis.Inspection, []*apis.Inspection, error) {
+	CoreWorkloadArray := apis.NewWorkload()
+	ResourceWorkloadArray := apis.NewWorkload()
+
+	coreInspections := apis.NewInspections()
+	resourceInspections := apis.NewInspections()
 
 	globalConfig, err := config.ReadConfigFile()
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	if globalConfig.Kubernetes[name].Enable {
@@ -147,7 +177,7 @@ func GetWorkloads(name string, client *apis.Client) (*apis.Workload, error) {
 				if k8serrors.IsNotFound(err) {
 					continue
 				}
-				return nil, err
+				return nil, nil, nil, nil, err
 			}
 
 			state := "active"
@@ -166,10 +196,10 @@ func GetWorkloads(name string, client *apis.Client) (*apis.Workload, error) {
 			set := labels.Set(deployment.Spec.Selector.MatchLabels)
 			pods, err := GetPod(deploy.Regexp, deployment.Namespace, set, client.Clientset)
 			if err != nil {
-				return nil, err
+				return nil, nil, nil, nil, err
 			}
 
-			deploymentArray = append(deploymentArray, &apis.WorkloadData{
+			deploymentData := &apis.WorkloadData{
 				Name:      deployment.Name,
 				Namespace: deployment.Namespace,
 				Pods:      pods,
@@ -177,7 +207,15 @@ func GetWorkloads(name string, client *apis.Client) (*apis.Workload, error) {
 					State:     state,
 					Condition: condition,
 				},
-			})
+			}
+
+			if deploy.Core {
+				CoreWorkloadArray.Deployment = append(CoreWorkloadArray.Deployment, deploymentData)
+				coreInspections = append(coreInspections, apis.NewInspection("core deployment", "core deployment message", "Deployment", 3, true))
+			} else {
+				ResourceWorkloadArray.Deployment = append(ResourceWorkloadArray.Deployment, deploymentData)
+				resourceInspections = append(resourceInspections, apis.NewInspection("resource deployment", "resource deployment message", "Deployment", 1, true))
+			}
 		}
 
 		for _, ds := range globalConfig.Kubernetes[name].Workloads.Daemonset {
@@ -186,7 +224,7 @@ func GetWorkloads(name string, client *apis.Client) (*apis.Workload, error) {
 				if k8serrors.IsNotFound(err) {
 					continue
 				}
-				return nil, err
+				return nil, nil, nil, nil, err
 			}
 
 			var condition []apis.Condition
@@ -201,10 +239,10 @@ func GetWorkloads(name string, client *apis.Client) (*apis.Workload, error) {
 			set := labels.Set(daemonSet.Spec.Selector.MatchLabels)
 			pods, err := GetPod(ds.Regexp, daemonSet.Namespace, set, client.Clientset)
 			if err != nil {
-				return nil, err
+				return nil, nil, nil, nil, err
 			}
 
-			daemonSetArray = append(daemonSetArray, &apis.WorkloadData{
+			daemonSetData := &apis.WorkloadData{
 				Name:      daemonSet.Name,
 				Namespace: daemonSet.Namespace,
 				Pods:      pods,
@@ -212,7 +250,13 @@ func GetWorkloads(name string, client *apis.Client) (*apis.Workload, error) {
 					State:     "active",
 					Condition: condition,
 				},
-			})
+			}
+
+			if ds.Core {
+				CoreWorkloadArray.Daemonset = append(CoreWorkloadArray.Daemonset, daemonSetData)
+			} else {
+				ResourceWorkloadArray.Daemonset = append(ResourceWorkloadArray.Daemonset, daemonSetData)
+			}
 		}
 
 		for _, sts := range globalConfig.Kubernetes[name].Workloads.Statefulset {
@@ -221,7 +265,7 @@ func GetWorkloads(name string, client *apis.Client) (*apis.Workload, error) {
 				if k8serrors.IsNotFound(err) {
 					continue
 				}
-				return nil, err
+				return nil, nil, nil, nil, err
 			}
 
 			state := "active"
@@ -240,10 +284,10 @@ func GetWorkloads(name string, client *apis.Client) (*apis.Workload, error) {
 			set := labels.Set(statefulset.Spec.Selector.MatchLabels)
 			pods, err := GetPod(sts.Regexp, statefulset.Namespace, set, client.Clientset)
 			if err != nil {
-				return nil, err
+				return nil, nil, nil, nil, err
 			}
 
-			statefulSetArray = append(statefulSetArray, &apis.WorkloadData{
+			statefulSetData := &apis.WorkloadData{
 				Name:      statefulset.Name,
 				Namespace: statefulset.Namespace,
 				Pods:      pods,
@@ -251,7 +295,13 @@ func GetWorkloads(name string, client *apis.Client) (*apis.Workload, error) {
 					State:     state,
 					Condition: condition,
 				},
-			})
+			}
+
+			if sts.Core {
+				CoreWorkloadArray.Statefulset = append(CoreWorkloadArray.Statefulset, statefulSetData)
+			} else {
+				ResourceWorkloadArray.Statefulset = append(ResourceWorkloadArray.Statefulset, statefulSetData)
+			}
 		}
 
 		for _, j := range globalConfig.Kubernetes[name].Workloads.Job {
@@ -260,7 +310,7 @@ func GetWorkloads(name string, client *apis.Client) (*apis.Workload, error) {
 				if k8serrors.IsNotFound(err) {
 					continue
 				}
-				return nil, err
+				return nil, nil, nil, nil, err
 			}
 
 			state := "active"
@@ -279,10 +329,10 @@ func GetWorkloads(name string, client *apis.Client) (*apis.Workload, error) {
 			set := labels.Set(job.Spec.Selector.MatchLabels)
 			pods, err := GetPod(j.Regexp, j.Namespace, set, client.Clientset)
 			if err != nil {
-				return nil, err
+				return nil, nil, nil, nil, err
 			}
 
-			jobArray = append(jobArray, &apis.WorkloadData{
+			jobData := &apis.WorkloadData{
 				Name:      job.Name,
 				Namespace: job.Namespace,
 				Pods:      pods,
@@ -290,17 +340,17 @@ func GetWorkloads(name string, client *apis.Client) (*apis.Workload, error) {
 					State:     state,
 					Condition: condition,
 				},
-			})
+			}
+
+			if j.Core {
+				CoreWorkloadArray.Job = append(CoreWorkloadArray.Job, jobData)
+			} else {
+				ResourceWorkloadArray.Job = append(ResourceWorkloadArray.Job, jobData)
+			}
 		}
 	}
 
-	return &apis.Workload{
-		Deployment:  deploymentArray,
-		Daemonset:   daemonSetArray,
-		Statefulset: statefulSetArray,
-		Job:         jobArray,
-		//Cronjob: cronJobArray,
-	}, nil
+	return CoreWorkloadArray, ResourceWorkloadArray, coreInspections, resourceInspections, nil
 }
 
 func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernetes.Clientset) ([]*apis.Pod, error) {
@@ -360,4 +410,53 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 	wg.Wait()
 
 	return pods, nil
+}
+
+func GetNamespaces(name string, client *apis.Client) ([]*apis.Namespace, []*apis.Inspection, error) {
+	resourceInspections := apis.NewInspections()
+
+	namespaces := apis.NewNamespaces()
+	namespaces = append(namespaces, &apis.Namespace{
+		Name:               "default",
+		EmptyResourceQuota: false,
+	})
+	resourceInspections = append(resourceInspections, apis.NewInspection("Namespace Inspection", "Namespace Inspection message", "Namespace", 1, true))
+	return namespaces, resourceInspections, nil
+}
+
+func GetPersistentVolumeClaims(name string, client *apis.Client) ([]*apis.PersistentVolumeClaim, []*apis.Inspection, error) {
+	resourceInspections := apis.NewInspections()
+
+	persistentVolumeClaims := apis.NewPersistentVolumeClaims()
+	persistentVolumeClaims = append(persistentVolumeClaims, &apis.PersistentVolumeClaim{
+		Name:  "default",
+		State: "bound",
+	})
+	resourceInspections = append(resourceInspections, apis.NewInspection("PersistentVolumeClaim Inspection", "PersistentVolumeClaim Inspection message", "PersistentVolumeClaim", 1, true))
+	return persistentVolumeClaims, resourceInspections, nil
+}
+
+func GetServices(name string, client *apis.Client) ([]*apis.Service, []*apis.Inspection, error) {
+	resourceInspections := apis.NewInspections()
+
+	services := apis.NewServices()
+	services = append(services, &apis.Service{
+		Name:           "default",
+		Namespace:      "default",
+		EmptyEndpoints: false,
+	})
+	resourceInspections = append(resourceInspections, apis.NewInspection("Service Inspection", "Service Inspection message", "Service", 1, true))
+	return services, resourceInspections, nil
+}
+
+func GetIngress(name string, client *apis.Client) ([]*apis.Ingress, []*apis.Inspection, error) {
+	resourceInspections := apis.NewInspections()
+
+	ingress := apis.NewIngress()
+	ingress = append(ingress, &apis.Ingress{
+		Name:          "default",
+		DuplicatePath: false,
+	})
+	resourceInspections = append(resourceInspections, apis.NewInspection("Ingress Inspection", "Ingress Inspection message", "Ingress", 1, true))
+	return ingress, resourceInspections, nil
 }

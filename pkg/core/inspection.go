@@ -30,29 +30,69 @@ func Inspection(plan *apis.Plan) error {
 	report := apis.NewReport()
 	for name, client := range clients {
 		report.Kubernetes[name] = apis.NewKubernetes()
+		clusterCore := apis.NewClusterCore()
+		clusterNode := apis.NewClusterNode()
+		clusterResource := apis.NewClusterResource()
 
-		workloadArray, err := GetWorkloads(name, client)
+		coreInspections := apis.NewInspections()
+		nodeInspections := apis.NewInspections()
+		resourceInspections := apis.NewInspections()
+
+		CoreWorkloadArray, ResourceWorkloadArray, coreInspectionArray, resourceInspectionArray, err := GetWorkloads(name, client)
 		if err != nil {
 			return err
 		}
-		report.Kubernetes[name].Workloads = workloadArray
+		coreInspections = append(coreInspections, coreInspectionArray...)
+		resourceInspections = append(resourceInspections, resourceInspectionArray...)
 
-		nodeArray, err := GetNodes(client)
+		CoreNodeArray, NodeNodeArray, coreInspectionArray, nodeInspectionArray, err := GetNodes(name, client)
 		if err != nil {
 			return err
 		}
-		report.Kubernetes[name].Nodes = nodeArray
+		coreInspections = append(coreInspections, coreInspectionArray...)
+		nodeInspections = append(nodeInspections, nodeInspectionArray...)
 
-		err = GetGlobal(report)
-
+		ResourceNamespaceArray, resourceInspectionArray, err := GetNamespaces(name, client)
 		if err != nil {
 			return err
 		}
-	}
+		resourceInspections = append(resourceInspections, resourceInspectionArray...)
 
-	dataWarnings, err := json.Marshal(report.Global.Warnings)
-	if err != nil {
-		return err
+		ResourcePersistentVolumeClaimArray, resourceInspectionArray, err := GetPersistentVolumeClaims(name, client)
+		if err != nil {
+			return err
+		}
+		resourceInspections = append(resourceInspections, resourceInspectionArray...)
+
+		ResourceServiceArray, resourceInspectionArray, err := GetServices(name, client)
+		if err != nil {
+			return err
+		}
+		resourceInspections = append(resourceInspections, resourceInspectionArray...)
+
+		ResourceIngressArray, resourceInspectionArray, err := GetIngress(name, client)
+		if err != nil {
+			return err
+		}
+		resourceInspections = append(resourceInspections, resourceInspectionArray...)
+
+		clusterCore.Workloads = CoreWorkloadArray
+		clusterCore.Nodes = CoreNodeArray
+		clusterCore.Inspections = coreInspections
+
+		clusterNode.Nodes = NodeNodeArray
+		clusterNode.Inspections = nodeInspections
+
+		clusterResource.Workloads = ResourceWorkloadArray
+		clusterResource.Namespace = ResourceNamespaceArray
+		clusterResource.PersistentVolumeClaim = ResourcePersistentVolumeClaimArray
+		clusterResource.Service = ResourceServiceArray
+		clusterResource.Ingress = ResourceIngressArray
+		clusterResource.Inspections = resourceInspections
+
+		report.Kubernetes[name].ClusterCore = clusterCore
+		report.Kubernetes[name].ClusterNode = clusterNode
+		report.Kubernetes[name].ClusterResource = clusterResource
 	}
 
 	data, err := json.Marshal(report.Kubernetes)
@@ -61,7 +101,9 @@ func Inspection(plan *apis.Plan) error {
 	}
 
 	reportID := common.GetUUID()
-	err = db.CreateReport(reportID, report.Global.ReportTime, string(dataWarnings), string(data), report.Global.Rating)
+	rating := 0
+	reportTime := time.Now().Format(time.DateTime)
+	err = db.CreateReport(reportID, reportTime, string(data), rating)
 	if err != nil {
 		return err
 	}

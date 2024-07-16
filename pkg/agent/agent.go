@@ -132,14 +132,7 @@ func getConfigMap() *applycorev1.ConfigMapApplyConfiguration {
 		WithData(map[string]string{
 			"inspection.sh": `#!/bin/bash
 
-commands=(
-	"Kubelet Health Check:curl -sS http://localhost:10248/healthz"
-	"API Server Ready Check:kubectl get --raw='/readyz'"
-	"API Server Live Check:kubectl get --raw='/livez'"
-	"ETCD Ready Check:kubectl get --raw='/readyz/etcd'"
-	"ETCD Live Check:kubectl get --raw='/livez/etcd'"
-	"Test Error command:test-error"
-)
+commands=("$@")
 
 results=()
 
