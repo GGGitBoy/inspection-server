@@ -505,6 +505,16 @@ func GetNamespaces(name string, client *apis.Client) ([]*apis.Namespace, []*apis
 			return nil, nil, err
 		}
 
+		secretList, err := client.Clientset.CoreV1().Secrets(n.Name).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		configMapList, err := client.Clientset.CoreV1().ConfigMaps(n.Name).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return nil, nil, err
+		}
+
 		resourceQuotaList, err := client.Clientset.CoreV1().ResourceQuotas(n.GetName()).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return nil, nil, err
@@ -531,6 +541,8 @@ func GetNamespaces(name string, client *apis.Client) ([]*apis.Namespace, []*apis
 			StatefulsetCount:   len(statefulSetList.Items),
 			DaemonsetCount:     len(daemonSetList.Items),
 			JobCount:           len(jobList.Items),
+			SecretCount:        len(secretList.Items),
+			ConfigMapCount:     len(configMapList.Items),
 		})
 	}
 

@@ -100,6 +100,8 @@ type Namespace struct {
 	StatefulsetCount   int    `json:"statefulset_count"`
 	DaemonsetCount     int    `json:"daemonset_count"`
 	JobCount           int    `json:"job_count"`
+	SecretCount        int    `json:"secret_count"`
+	ConfigMapCount     int    `json:"config_map_count"`
 }
 
 type PersistentVolumeClaim struct {
