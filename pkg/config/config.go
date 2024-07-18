@@ -66,6 +66,21 @@ func Register() error {
 
 	config := NewConfig()
 	for _, c := range clusters.Items {
+		kubernetesClient, err := common.GetKubernetesClient(c.GetName())
+		if err != nil {
+			return err
+		}
+
+		nodeList, err := kubernetesClient.Clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+
+		var nodeNames []string
+		for _, n := range nodeList.Items {
+			nodeNames = append(nodeNames, n.GetName())
+		}
+
 		workloads := &Workloads{
 			Deployment: []*WorkloadData{
 				{
@@ -121,7 +136,7 @@ func Register() error {
 		}
 		nodes := []*Node{
 			{
-				Names: []string{"local-node"},
+				Names: nodeNames,
 				Commands: []*Command{
 					{
 						Description: "Kubelet Health Check",

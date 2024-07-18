@@ -8,7 +8,7 @@ import (
 	"log"
 )
 
-func CreateReport(id, reportTime, data string, rating int) error {
+func CreateReport(id, name, reportTime, data string, rating int) error {
 	DB, err := sql.Open(sqliteDriver, sqliteName)
 	if err != nil {
 		log.Fatal(err)
@@ -19,12 +19,12 @@ func CreateReport(id, reportTime, data string, rating int) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	stmt, err := tx.Prepare("INSERT INTO report(id, rating, report_time, data) VALUES(?, ?, ?, ?)")
+	stmt, err := tx.Prepare("INSERT INTO report(id, name, rating, report_time, data) VALUES(?, ?, ?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(id, rating, reportTime, data)
+	_, err = stmt.Exec(id, name, rating, reportTime, data)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,12 +40,12 @@ func GetReport(reportID string) (*apis.Report, error) {
 	}
 	defer DB.Close()
 
-	row := DB.QueryRow("SELECT id, rating, report_time, data FROM report WHERE id = ? LIMIT 1", reportID)
+	row := DB.QueryRow("SELECT id, name, rating, report_time, data FROM report WHERE id = ? LIMIT 1", reportID)
 
-	var id, reportTime, data string
+	var id, name, reportTime, data string
 	var rating int
 	report := apis.NewReport()
-	err = row.Scan(&id, &rating, &reportTime, &data)
+	err = row.Scan(&id, &name, &rating, &reportTime, &data)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			fmt.Println("没有找到匹配的数据")
@@ -76,6 +76,7 @@ func GetReport(reportID string) (*apis.Report, error) {
 		report.ID = id
 		report.Global.Rating = rating
 		report.Global.ReportTime = reportTime
+		report.Global.Name = name
 	}
 
 	return report, nil

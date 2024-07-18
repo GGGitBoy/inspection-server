@@ -58,11 +58,11 @@ func Inspection(plan *apis.Plan) error {
 		}
 		resourceInspections = append(resourceInspections, resourceInspectionArray...)
 
-		ResourcePersistentVolumeClaimArray, resourceInspectionArray, err := GetPersistentVolumeClaims(name, client)
-		if err != nil {
-			return err
-		}
-		resourceInspections = append(resourceInspections, resourceInspectionArray...)
+		//ResourcePersistentVolumeClaimArray, resourceInspectionArray, err := GetPersistentVolumeClaims(name, client)
+		//if err != nil {
+		//	return err
+		//}
+		//resourceInspections = append(resourceInspections, resourceInspectionArray...)
 
 		ResourceServiceArray, resourceInspectionArray, err := GetServices(name, client)
 		if err != nil {
@@ -85,7 +85,7 @@ func Inspection(plan *apis.Plan) error {
 
 		clusterResource.Workloads = ResourceWorkloadArray
 		clusterResource.Namespace = ResourceNamespaceArray
-		clusterResource.PersistentVolumeClaim = ResourcePersistentVolumeClaimArray
+		//clusterResource.PersistentVolumeClaim = ResourcePersistentVolumeClaimArray
 		clusterResource.Service = ResourceServiceArray
 		clusterResource.Ingress = ResourceIngressArray
 		clusterResource.Inspections = resourceInspections
@@ -103,7 +103,7 @@ func Inspection(plan *apis.Plan) error {
 	reportID := common.GetUUID()
 	rating := 0
 	reportTime := time.Now().Format(time.DateTime)
-	err = db.CreateReport(reportID, reportTime, string(data), rating)
+	err = db.CreateReport(reportID, record.Name, reportTime, string(data), rating)
 	if err != nil {
 		return err
 	}
@@ -114,8 +114,6 @@ func Inspection(plan *apis.Plan) error {
 	if err != nil {
 		return err
 	}
-
-	time.Sleep(5 * time.Second)
 
 	return nil
 }

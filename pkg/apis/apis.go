@@ -19,6 +19,7 @@ type Report struct {
 }
 
 type Global struct {
+	Name       string `json:"name"`
 	Rating     int    `json:"rating"`
 	ReportTime string `json:"report_time"`
 }
@@ -43,12 +44,12 @@ type ClusterNode struct {
 }
 
 type ClusterResource struct {
-	Workloads             *Workload                `json:"workloads"`
-	Namespace             []*Namespace             `json:"namespace"`
-	PersistentVolumeClaim []*PersistentVolumeClaim `json:"persistent_volume_claim"`
-	Service               []*Service               `json:"service"`
-	Ingress               []*Ingress               `json:"ingress"`
-	Inspections           []*Inspection            `json:"inspections"`
+	Workloads *Workload    `json:"workloads"`
+	Namespace []*Namespace `json:"namespace"`
+	//PersistentVolumeClaim []*PersistentVolumeClaim `json:"persistent_volume_claim"`
+	Service     []*Service    `json:"service"`
+	Ingress     []*Ingress    `json:"ingress"`
+	Inspections []*Inspection `json:"inspections"`
 }
 
 type Kubernetes struct {
@@ -212,11 +213,11 @@ func NewClusterResource() *ClusterResource {
 			Job:         []*WorkloadData{},
 			Cronjob:     []*WorkloadData{},
 		},
-		Namespace:             []*Namespace{},
-		PersistentVolumeClaim: []*PersistentVolumeClaim{},
-		Service:               []*Service{},
-		Ingress:               []*Ingress{},
-		Inspections:           []*Inspection{},
+		Namespace: []*Namespace{},
+		//PersistentVolumeClaim: []*PersistentVolumeClaim{},
+		Service:     []*Service{},
+		Ingress:     []*Ingress{},
+		Inspections: []*Inspection{},
 	}
 }
 

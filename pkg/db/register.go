@@ -9,6 +9,7 @@ var (
 	sqlTables = []string{
 		`CREATE TABLE IF NOT EXISTS report (
 			id TEXT NOT NULL PRIMARY KEY,
+			name TEXT,
 			rating INT,
 			report_time TEXT,
 			data TEXT

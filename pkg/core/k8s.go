@@ -445,15 +445,19 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 			if str == nil {
 				str = []string{}
 			}
+			fmt.Println("pod name 1")
 			mu.Lock()
 			pods = append(pods, &apis.Pod{
 				Name: pod.Name,
 				Log:  str,
 			})
 			mu.Unlock()
+			fmt.Println("pod name 2")
 		}(pod)
 	}
 	wg.Wait()
+
+	fmt.Println(pods)
 
 	return pods, nil
 }
@@ -525,7 +529,7 @@ func GetNamespaces(name string, client *apis.Client) ([]*apis.Namespace, []*apis
 			resourceInspections = append(resourceInspections, apis.NewInspection("Namespace Inspection", "Namespace Inspection message", "Namespace", 1, false))
 		}
 
-		if (len(podList.Items) + len(serviceList.Items) + len(deploymentList.Items) + len(replicaSetList.Items) + len(statefulSetList.Items) + len(daemonSetList.Items) + len(jobList.Items)) == 0 {
+		if (len(podList.Items) + len(serviceList.Items) + len(deploymentList.Items) + len(replicaSetList.Items) + len(statefulSetList.Items) + len(daemonSetList.Items) + len(jobList.Items) + len(secretList.Items) + len(configMapList.Items)) == 0 {
 			emptyResource = true
 			resourceInspections = append(resourceInspections, apis.NewInspection("emptyResource", "emptyResource", "Namespace", 1, false))
 		}
