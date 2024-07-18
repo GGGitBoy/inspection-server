@@ -16,8 +16,10 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/utils/strings/slices"
+	"log"
 	"os"
 	"regexp"
+	"strings"
 	"sync"
 )
 
@@ -67,9 +69,44 @@ func GetNodes(name string, client *apis.Client) ([]*apis.Node, []*apis.Node, []*
 					return nil, nil, nil, nil, err
 				}
 
-				annotations := map[string]string{
-					"pod-limits":   node.Annotations["management.cattle.io/pod-limits"],
-					"pod-requests": node.Annotations["management.cattle.io/pod-requests"],
+				podLimits := getResourceList(node.Annotations["management.cattle.io/pod-limits"])
+				podRequests := getResourceList(node.Annotations["management.cattle.io/pod-requests"])
+
+				limitsCPU := podLimits.Cpu().Value()
+				limitsMemory := podLimits.Memory().Value()
+				requestsCPU := podRequests.Cpu().Value()
+				requestsMemory := podRequests.Memory().Value()
+				requestsPods := podRequests.Pods().Value()
+				allocatableCPU, _ := node.Status.Allocatable.Cpu().AsInt64()
+				allocatableMemory, _ := node.Status.Allocatable.Memory().AsInt64()
+				allocatablePods, _ := node.Status.Allocatable.Pods().AsInt64()
+
+				fmt.Println(podLimits)
+				fmt.Println(limitsCPU)
+				fmt.Println(limitsMemory)
+				fmt.Println(requestsCPU)
+				fmt.Println(requestsMemory)
+				fmt.Println(requestsPods)
+				fmt.Println("limitsCPU:")
+				fmt.Println(float64(limitsCPU) / float64(allocatableCPU))
+				if float64(limitsCPU)/float64(allocatableCPU) > 0.8 {
+					nodeInspections = append(nodeInspections, apis.NewInspection("limitsCPU over 80%", "node Inspection message", "Node", 3, true))
+				}
+
+				if float64(limitsMemory)/float64(allocatableMemory) > 0.8 {
+					nodeInspections = append(nodeInspections, apis.NewInspection("limitsMemory over 80%", "node Inspection message", "Node", 3, true))
+				}
+
+				if float64(requestsCPU)/float64(allocatableCPU) > 0.8 {
+					nodeInspections = append(nodeInspections, apis.NewInspection("requestsCPU over 80%", "node Inspection message", "Node", 3, true))
+				}
+
+				if float64(requestsMemory)/float64(allocatableMemory) > 0.8 {
+					nodeInspections = append(nodeInspections, apis.NewInspection("requestsMemory over 80%", "node Inspection message", "Node", 3, true))
+				}
+
+				if float64(requestsPods)/float64(allocatablePods) > 0.8 {
+					nodeInspections = append(nodeInspections, apis.NewInspection("requestsPods over 80%", "node Inspection message", "Node", 3, true))
 				}
 
 				var commands []string
@@ -90,8 +127,17 @@ func GetNodes(name string, client *apis.Client) ([]*apis.Node, []*apis.Node, []*
 				}
 
 				nodeData := &apis.Node{
-					Name:        pod.Spec.NodeName,
-					Annotations: annotations,
+					Name: pod.Spec.NodeName,
+					Resource: &apis.Resource{
+						LimitsCPU:         limitsCPU,
+						LimitsMemory:      limitsMemory,
+						RequestsCPU:       requestsCPU,
+						RequestsMemory:    requestsMemory,
+						RequestsPods:      requestsPods,
+						AllocatableCPU:    allocatableCPU,
+						AllocatableMemory: allocatableMemory,
+						AllocatablePods:   allocatablePods,
+					},
 					Commands: &apis.Command{
 						Stdout: results,
 						Stderr: stderr,
@@ -414,13 +460,80 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 
 func GetNamespaces(name string, client *apis.Client) ([]*apis.Namespace, []*apis.Inspection, error) {
 	resourceInspections := apis.NewInspections()
-
 	namespaces := apis.NewNamespaces()
-	namespaces = append(namespaces, &apis.Namespace{
-		Name:               "default",
-		EmptyResourceQuota: false,
-	})
-	resourceInspections = append(resourceInspections, apis.NewInspection("Namespace Inspection", "Namespace Inspection message", "Namespace", 1, true))
+
+	namespaceList, err := client.Clientset.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, n := range namespaceList.Items {
+		var emptyResourceQuota, emptyResource bool
+
+		podList, err := client.Clientset.CoreV1().Pods(n.Name).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		serviceList, err := client.Clientset.CoreV1().Services(n.Name).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		deploymentList, err := client.Clientset.AppsV1().Deployments(n.Name).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		replicaSetList, err := client.Clientset.AppsV1().ReplicaSets(n.Name).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		statefulSetList, err := client.Clientset.AppsV1().StatefulSets(n.Name).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		daemonSetList, err := client.Clientset.AppsV1().DaemonSets(n.Name).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		jobList, err := client.Clientset.BatchV1().Jobs(n.Name).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		resourceQuotaList, err := client.Clientset.CoreV1().ResourceQuotas(n.GetName()).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if len(resourceQuotaList.Items) == 0 {
+			emptyResourceQuota = true
+			resourceInspections = append(resourceInspections, apis.NewInspection("Namespace Inspection", "Namespace Inspection message", "Namespace", 1, false))
+		}
+
+		if (len(podList.Items) + len(serviceList.Items) + len(deploymentList.Items) + len(replicaSetList.Items) + len(statefulSetList.Items) + len(daemonSetList.Items) + len(jobList.Items)) == 0 {
+			emptyResource = true
+			resourceInspections = append(resourceInspections, apis.NewInspection("emptyResource", "emptyResource", "Namespace", 1, false))
+		}
+
+		namespaces = append(namespaces, &apis.Namespace{
+			Name:               n.Name,
+			EmptyResourceQuota: emptyResourceQuota,
+			EmptyResource:      emptyResource,
+			PodCount:           len(podList.Items),
+			ServiceCount:       len(serviceList.Items),
+			DeploymentCount:    len(deploymentList.Items),
+			ReplicasetCount:    len(replicaSetList.Items),
+			StatefulsetCount:   len(statefulSetList.Items),
+			DaemonsetCount:     len(daemonSetList.Items),
+			JobCount:           len(jobList.Items),
+		})
+	}
+
 	return namespaces, resourceInspections, nil
 }
 
@@ -438,25 +551,108 @@ func GetPersistentVolumeClaims(name string, client *apis.Client) ([]*apis.Persis
 
 func GetServices(name string, client *apis.Client) ([]*apis.Service, []*apis.Inspection, error) {
 	resourceInspections := apis.NewInspections()
-
 	services := apis.NewServices()
-	services = append(services, &apis.Service{
-		Name:           "default",
-		Namespace:      "default",
-		EmptyEndpoints: false,
-	})
-	resourceInspections = append(resourceInspections, apis.NewInspection("Service Inspection", "Service Inspection message", "Service", 1, true))
+
+	// 获取所有命名空间下的所有 Services
+	serviceList, err := client.Clientset.CoreV1().Services("").List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, s := range serviceList.Items {
+		// 获取对应的 Endpoints
+		endpoints, err := client.Clientset.CoreV1().Endpoints(s.Namespace).Get(context.TODO(), s.Name, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				resourceInspections = append(resourceInspections, apis.NewInspection("找不到该 svc 对应的 endpoint", "Service Inspection message", "Service", 1, true))
+				continue
+			}
+			return nil, nil, err
+		}
+
+		// 检查 Endpoints 是否为空
+		var emptyEndpoints bool
+		if len(endpoints.Subsets) == 0 {
+			emptyEndpoints = true
+			resourceInspections = append(resourceInspections, apis.NewInspection("无效的 Service: %s/%s (Endpoints 没有 Subsets)\n", "Service Inspection message", "Service", 1, true))
+		}
+
+		services = append(services, &apis.Service{
+			Name:           s.Name,
+			Namespace:      s.Namespace,
+			EmptyEndpoints: emptyEndpoints,
+		})
+	}
+
 	return services, resourceInspections, nil
 }
 
 func GetIngress(name string, client *apis.Client) ([]*apis.Ingress, []*apis.Inspection, error) {
 	resourceInspections := apis.NewInspections()
-
 	ingress := apis.NewIngress()
-	ingress = append(ingress, &apis.Ingress{
-		Name:          "default",
-		DuplicatePath: false,
-	})
-	resourceInspections = append(resourceInspections, apis.NewInspection("Ingress Inspection", "Ingress Inspection message", "Ingress", 1, true))
+
+	// 获取所有命名空间下的所有 Ingress
+	ingresseList, err := client.Clientset.NetworkingV1().Ingresses("").List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		log.Fatalf("Error listing ingresses: %v", err)
+	}
+
+	// 使用 map 来记录 host+path 与 ingress 名称的映射
+	ingressMap := make(map[string][]string)
+	for _, i := range ingresseList.Items {
+		for _, rule := range i.Spec.Rules {
+			host := rule.Host
+			for _, path := range rule.HTTP.Paths {
+				key := host + path.Path
+				ingressMap[key] = append(ingressMap[key], fmt.Sprintf("%s/%s", i.Namespace, i.Name))
+			}
+		}
+
+		ingress = append(ingress, &apis.Ingress{
+			Name:          i.Name,
+			Namespace:     i.Namespace,
+			DuplicatePath: false,
+		})
+	}
+
+	duplicateIngress := make(map[string]int)
+	// 检查是否有重名且 Path 路径相同的 Ingress
+	for key, ingressNames := range ingressMap {
+		if len(ingressNames) > 1 {
+			for _, ingressName := range ingressNames {
+				duplicateIngress[ingressName] = 1
+			}
+			fmt.Printf("发现重名且 Path 路径相同的 Ingress: %s, Ingress 列表: %v\n", key, ingressNames)
+		}
+	}
+
+	if len(duplicateIngress) > 0 {
+		for NamespaceName, _ := range duplicateIngress {
+			parts := strings.Split(NamespaceName, "/")
+			for index, i := range ingress {
+				if parts[0] == i.Namespace && parts[1] == i.Name {
+					ingress[index] = &apis.Ingress{
+						Name:          i.Name,
+						Namespace:     i.Namespace,
+						DuplicatePath: true,
+					}
+				}
+			}
+
+			resourceInspections = append(resourceInspections, apis.NewInspection("duplicate path Ingress", "Ingress Inspection message", "Ingress", 1, true))
+		}
+	}
+
 	return ingress, resourceInspections, nil
+}
+
+func getResourceList(val string) corev1.ResourceList {
+	if val == "" {
+		return nil
+	}
+	result := corev1.ResourceList{}
+	if err := json.Unmarshal([]byte(val), &result); err != nil {
+		return corev1.ResourceList{}
+	}
+	return result
 }

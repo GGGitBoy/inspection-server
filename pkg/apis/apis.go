@@ -73,14 +73,33 @@ type WorkloadData struct {
 }
 
 type Node struct {
-	Name        string            `json:"name"`
-	Annotations map[string]string `json:"annotations"`
-	Commands    *Command          `json:"commands"`
+	Name     string    `json:"name"`
+	Resource *Resource `json:"resource"`
+	Commands *Command  `json:"commands"`
+}
+
+type Resource struct {
+	LimitsCPU         int64 `json:"limits_cpu"`
+	LimitsMemory      int64 `json:"limits_memory"`
+	RequestsCPU       int64 `json:"requests_cpu"`
+	RequestsMemory    int64 `json:"requests_memory"`
+	RequestsPods      int64 `json:"requests_pods"`
+	AllocatableCPU    int64 `json:"allocatable_cpu"`
+	AllocatableMemory int64 `json:"allocatable_memory"`
+	AllocatablePods   int64 `json:"allocatable_pods"`
 }
 
 type Namespace struct {
 	Name               string `json:"name"`
 	EmptyResourceQuota bool   `json:"empty_resource_quota"`
+	EmptyResource      bool   `json:"empty_resource"`
+	PodCount           int    `json:"pod_count"`
+	ServiceCount       int    `json:"service_count"`
+	DeploymentCount    int    `json:"deployment_count"`
+	ReplicasetCount    int    `json:"replicaset_count"`
+	StatefulsetCount   int    `json:"statefulset_count"`
+	DaemonsetCount     int    `json:"daemonset_count"`
+	JobCount           int    `json:"job_count"`
 }
 
 type PersistentVolumeClaim struct {
@@ -96,6 +115,7 @@ type Service struct {
 
 type Ingress struct {
 	Name          string `json:"name"`
+	Namespace     string `json:"namespace"`
 	DuplicatePath bool   `json:"duplicate_path"`
 }
 
