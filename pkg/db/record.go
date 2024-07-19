@@ -7,32 +7,6 @@ import (
 	"log"
 )
 
-func CreateRecord(record *apis.Record) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer DB.Close()
-
-	tx, err := DB.Begin()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	stmt, err := tx.Prepare("INSERT INTO record(id, name, start_time, end_time, mode, report_id) VALUES(?, ?, ?, ?, ?, ?)")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer stmt.Close()
-	_, err = stmt.Exec(record.ID, record.Name, record.StartTime, record.EndTime, record.Mode, record.ReportID)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tx.Commit()
-
-	return nil
-}
-
 func GetRecord(recordID string) (*apis.Record, error) {
 	DB, err := sql.Open(sqliteDriver, sqliteName)
 	if err != nil {
@@ -100,6 +74,32 @@ func ListRecord() ([]*apis.Record, error) {
 	}
 
 	return records, nil
+}
+
+func CreateRecord(record *apis.Record) error {
+	DB, err := sql.Open(sqliteDriver, sqliteName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer DB.Close()
+
+	tx, err := DB.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stmt, err := tx.Prepare("INSERT INTO record(id, name, start_time, end_time, mode, report_id) VALUES(?, ?, ?, ?, ?, ?)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(record.ID, record.Name, record.StartTime, record.EndTime, record.Mode, record.ReportID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tx.Commit()
+
+	return nil
 }
 
 func DeleteRecord(recordID string) error {

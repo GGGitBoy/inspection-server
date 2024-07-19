@@ -17,27 +17,23 @@ func Start() http.Handler {
 	router.Methods(http.MethodGet).Path("/v1/reports/get/{id}").Handler(api.GetReport())
 	router.Methods(http.MethodPost).Path("/v1/reports/print").Handler(api.PrintReport())
 
-	router.Methods(http.MethodPost).Path("/v1/plans/create").Handler(api.CreatePlan())
-	router.Methods(http.MethodDelete).Path("/v1/plans/delete/{id}").Handler(api.DeletePlan())
 	router.Methods(http.MethodGet).Path("/v1/plans/get/{id}").Handler(api.GetPlan())
 	router.Methods(http.MethodGet).Path("/v1/plans/list").Handler(api.ListPlan())
+	router.Methods(http.MethodPost).Path("/v1/plans/create").Handler(api.CreatePlan())
+	router.Methods(http.MethodDelete).Path("/v1/plans/delete/{id}").Handler(api.DeletePlan())
 
-	router.Methods(http.MethodDelete).Path("/v1/records/delete/{id}").Handler(api.DeleteRecord())
 	router.Methods(http.MethodGet).Path("/v1/records/get/{id}").Handler(api.GetRecord())
 	router.Methods(http.MethodGet).Path("/v1/records/list").Handler(api.ListRecord())
+	router.Methods(http.MethodDelete).Path("/v1/records/delete/{id}").Handler(api.DeleteRecord())
 
-	router.Methods(http.MethodPut).Path("/v1/config/update").Handler(api.UpdateConfig())
-	router.Methods(http.MethodGet).Path("/v1/config/get").Handler(api.GetConfig())
+	router.Methods(http.MethodGet).Path("/v1/templates/get/{id}").Handler(api.GetTemplate())
+	router.Methods(http.MethodGet).Path("/v1/templates/list").Handler(api.ListTemplate())
+	router.Methods(http.MethodPost).Path("/v1/templates/create").Handler(api.CreateTemplate())
+	router.Methods(http.MethodPut).Path("/v1/templates/update").Handler(api.UpdateTemplate())
+	router.Methods(http.MethodDelete).Path("/v1/templates/delete/{id}").Handler(api.DeleteTemplate())
 
 	router.Methods(http.MethodGet).Path("/v1/clusters/list").Handler(api.GetClusters())
 	router.Methods(http.MethodGet).Path("/v1/clusters/{id}/resource/list").Handler(api.GetResource())
-	//router.Methods(http.MethodGet).Path("/v1/clusters/{id}/deployment/list").Handler(api.GetConfig())
-	//router.Methods(http.MethodGet).Path("/v1/clusters/{id}/statefulset/list").Handler(api.GetConfig())
-	//router.Methods(http.MethodGet).Path("/v1/clusters/{id}/daemonset/list").Handler(api.GetConfig())
-	//router.Methods(http.MethodGet).Path("/v1/clusters/{id}/job/list").Handler(api.GetConfig())
-	//router.Methods(http.MethodGet).Path("/v1/clusters/{id}/cronjob/list").Handler(api.GetConfig())
-
-	//router.Methods(http.MethodGet).Path("/v1/warning/list").Handler(api.GetConfig())
 
 	return router
 }

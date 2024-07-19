@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"inspection-server/pkg/common"
-	"inspection-server/pkg/config"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	applyappsv1 "k8s.io/client-go/applyconfigurations/apps/v1"
@@ -15,7 +14,7 @@ import (
 	"log"
 )
 
-func SyncAgent(configData *config.Config) error {
+func SyncAgent() error {
 	localKubernetesClient, err := common.GetKubernetesClient(common.LocalCluster)
 	if err != nil {
 		return err
@@ -29,17 +28,9 @@ func SyncAgent(configData *config.Config) error {
 	for _, c := range clusters.Items {
 		kubernetesClient, err := common.GetKubernetesClient(c.GetName())
 
-		kubernetes, ok := configData.Kubernetes[c.GetName()]
-		if ok && kubernetes.Enable {
-			err = CreateAgent(kubernetesClient.Clientset)
-			if err != nil {
-				return err
-			}
-		} else {
-			err = DeleteAgent(kubernetesClient.Clientset)
-			if err != nil {
-				return err
-			}
+		err = CreateAgent(kubernetesClient.Clientset)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -92,12 +83,7 @@ func CreateAgent(clientset *kubernetes.Clientset) error {
 }
 
 func Register() error {
-	configData, err := config.ReadConfigFile()
-	if err != nil {
-		return err
-	}
-
-	err = SyncAgent(configData)
+	err := SyncAgent()
 	if err != nil {
 		log.Fatal(err)
 	}

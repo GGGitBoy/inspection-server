@@ -7,32 +7,6 @@ import (
 	"log"
 )
 
-func CreatePlan(plan *apis.Plan) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer DB.Close()
-
-	tx, err := DB.Begin()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	stmt, err := tx.Prepare("INSERT INTO plan(id, name, timer, cron, mode, state) VALUES(?, ?, ?, ?, ?, ?)")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer stmt.Close()
-	_, err = stmt.Exec(plan.ID, plan.Name, plan.Timer, plan.Cron, plan.Mode, plan.State)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tx.Commit()
-
-	return nil
-}
-
 func GetPlan(planID string) (*apis.Plan, error) {
 	DB, err := sql.Open(sqliteDriver, sqliteName)
 	if err != nil {
@@ -40,11 +14,11 @@ func GetPlan(planID string) (*apis.Plan, error) {
 	}
 	defer DB.Close()
 
-	row := DB.QueryRow("SELECT id, name, timer, cron, mode, state FROM plan WHERE id = ? LIMIT 1", planID)
+	row := DB.QueryRow("SELECT id, name, timer, cron, mode, state, template_id FROM plan WHERE id = ? LIMIT 1", planID)
 
-	var id, name, timer, cron, state string
+	var id, name, timer, cron, state, templateID string
 	var mode int
-	err = row.Scan(&id, &name, &timer, &cron, &mode, &state)
+	err = row.Scan(&id, &name, &timer, &cron, &mode, &state, &templateID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			fmt.Println("没有找到匹配的数据")
@@ -70,7 +44,7 @@ func ListPlan() ([]*apis.Plan, error) {
 	}
 	defer DB.Close()
 
-	rows, err := DB.Query("SELECT id, name, timer, cron, mode, state FROM plan")
+	rows, err := DB.Query("SELECT id, name, timer, cron, mode, state, template_id FROM plan")
 	if err != nil {
 		return nil, err
 	}
@@ -78,9 +52,9 @@ func ListPlan() ([]*apis.Plan, error) {
 	defer rows.Close()
 	plans := apis.NewPlans()
 	for rows.Next() {
-		var id, name, timer, cron, state string
+		var id, name, timer, cron, state, templateID string
 		var mode int
-		err = rows.Scan(&id, &name, &timer, &cron, &mode, &state)
+		err = rows.Scan(&id, &name, &timer, &cron, &mode, &state, &templateID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				fmt.Println("没有找到匹配的数据")
@@ -90,16 +64,43 @@ func ListPlan() ([]*apis.Plan, error) {
 		}
 
 		plans = append(plans, &apis.Plan{
-			ID:    id,
-			Name:  name,
-			Timer: timer,
-			Cron:  cron,
-			Mode:  mode,
-			State: state,
+			ID:         id,
+			Name:       name,
+			Timer:      timer,
+			Cron:       cron,
+			Mode:       mode,
+			State:      state,
+			TemplateID: templateID,
 		})
 	}
 
 	return plans, nil
+}
+
+func CreatePlan(plan *apis.Plan) error {
+	DB, err := sql.Open(sqliteDriver, sqliteName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer DB.Close()
+
+	tx, err := DB.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stmt, err := tx.Prepare("INSERT INTO plan(id, name, timer, cron, mode, state, template_id) VALUES(?, ?, ?, ?, ?, ?, ?)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(plan.ID, plan.Name, plan.Timer, plan.Cron, plan.Mode, plan.State, plan.TemplateID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tx.Commit()
+
+	return nil
 }
 
 func UpdatePlan(plan *apis.Plan) error {
@@ -109,7 +110,7 @@ func UpdatePlan(plan *apis.Plan) error {
 	}
 	defer DB.Close()
 
-	_, err = DB.Exec("UPDATE plan SET name = ?, timer = ?, cron = ?, state = ? WHERE id = ?", plan.Name, plan.Timer, plan.Cron, plan.State, plan.ID)
+	_, err = DB.Exec("UPDATE plan SET name = ?, timer = ?, cron = ?, state = ?, template_id = ? WHERE id = ?", plan.Name, plan.Timer, plan.Cron, plan.State, plan.TemplateID, plan.ID)
 	if err != nil {
 		return err
 	}

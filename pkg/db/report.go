@@ -8,12 +8,17 @@ import (
 	"log"
 )
 
-func CreateReport(id, name, reportTime, data string, rating int) error {
+func CreateReport(report *apis.Report) error {
 	DB, err := sql.Open(sqliteDriver, sqliteName)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer DB.Close()
+
+	data, err := json.Marshal(report.Kubernetes)
+	if err != nil {
+		return err
+	}
 
 	tx, err := DB.Begin()
 	if err != nil {
@@ -24,7 +29,7 @@ func CreateReport(id, name, reportTime, data string, rating int) error {
 		log.Fatal(err)
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(id, name, rating, reportTime, data)
+	_, err = stmt.Exec(report.ID, report.Global.Name, report.Global.Rating, report.Global.ReportTime, string(data))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,30 +58,21 @@ func GetReport(reportID string) (*apis.Report, error) {
 			return nil, err
 		}
 	} else {
-		dataMap := make(map[string]interface{})
-		err := json.Unmarshal([]byte(data), &dataMap)
+		var dataKubernetes []*apis.Kubernetes
+		err := json.Unmarshal([]byte(data), &dataKubernetes)
 		if err != nil {
 			return nil, err
 		}
-		for name, kubernetes := range dataMap {
-			kubernetesBytes, err := json.Marshal(kubernetes)
-			if err != nil {
-				return nil, err
-			}
 
-			k := apis.NewKubernetes()
-			err = json.Unmarshal(kubernetesBytes, k)
-			if err != nil {
-				return nil, err
-			}
-
-			report.Kubernetes[name] = k
+		report = &apis.Report{
+			ID: id,
+			Global: &apis.Global{
+				Name:       name,
+				Rating:     rating,
+				ReportTime: reportTime,
+			},
+			Kubernetes: dataKubernetes,
 		}
-
-		report.ID = id
-		report.Global.Rating = rating
-		report.Global.ReportTime = reportTime
-		report.Global.Name = name
 	}
 
 	return report, nil

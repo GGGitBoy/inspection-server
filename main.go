@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"inspection-server/pkg/agent"
-	"inspection-server/pkg/config"
 	"inspection-server/pkg/db"
 	"inspection-server/pkg/schedule"
 	"inspection-server/pkg/server"
+	"inspection-server/pkg/template"
 	"net/http"
 	"os"
 
@@ -77,7 +77,7 @@ func before(ctx *cli.Context) error {
 		return err
 	}
 
-	err = config.Register()
+	err = template.Register()
 	if err != nil {
 		return err
 	}

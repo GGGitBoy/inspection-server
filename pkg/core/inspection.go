@@ -1,7 +1,6 @@
 package core
 
 import (
-	"encoding/json"
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
 	"inspection-server/pkg/db"
@@ -21,6 +20,11 @@ func Inspection(plan *apis.Plan) error {
 		return err
 	}
 
+	template, err := db.GetTemplate(plan.TemplateID)
+	if err != nil {
+		return err
+	}
+
 	clients := apis.NewClients()
 	err = common.GenerateKubeconfig(clients)
 	if err != nil {
@@ -28,88 +32,97 @@ func Inspection(plan *apis.Plan) error {
 	}
 
 	report := apis.NewReport()
-	for name, client := range clients {
-		report.Kubernetes[name] = apis.NewKubernetes()
-		clusterCore := apis.NewClusterCore()
-		clusterNode := apis.NewClusterNode()
-		clusterResource := apis.NewClusterResource()
+	kubernetes := apis.NewKubernetes()
+	for clusterID, client := range clients {
+		for _, k := range template.KubernetesConfig {
+			if k.ClusterID == clusterID && k.Enable {
+				clusterCore := apis.NewClusterCore()
+				clusterNode := apis.NewClusterNode()
+				clusterResource := apis.NewClusterResource()
 
-		coreInspections := apis.NewInspections()
-		nodeInspections := apis.NewInspections()
-		resourceInspections := apis.NewInspections()
+				coreInspections := apis.NewInspections()
+				nodeInspections := apis.NewInspections()
+				resourceInspections := apis.NewInspections()
 
-		CoreWorkloadArray, ResourceWorkloadArray, coreInspectionArray, resourceInspectionArray, err := GetWorkloads(name, client)
-		if err != nil {
-			return err
+				CoreWorkloadArray, ResourceWorkloadArray, coreInspectionArray, resourceInspectionArray, err := GetWorkloads(client, k.WorkloadConfig)
+				if err != nil {
+					return err
+				}
+				coreInspections = append(coreInspections, coreInspectionArray...)
+				resourceInspections = append(resourceInspections, resourceInspectionArray...)
+
+				CoreNodeArray, NodeNodeArray, coreInspectionArray, nodeInspectionArray, err := GetNodes(client, k.NodeConfig)
+				if err != nil {
+					return err
+				}
+				coreInspections = append(coreInspections, coreInspectionArray...)
+				nodeInspections = append(nodeInspections, nodeInspectionArray...)
+
+				ResourceNamespaceArray, resourceInspectionArray, err := GetNamespaces(client)
+				if err != nil {
+					return err
+				}
+				resourceInspections = append(resourceInspections, resourceInspectionArray...)
+
+				//ResourcePersistentVolumeClaimArray, resourceInspectionArray, err := GetPersistentVolumeClaims(name, client)
+				//if err != nil {
+				//	return err
+				//}
+				//resourceInspections = append(resourceInspections, resourceInspectionArray...)
+
+				ResourceServiceArray, resourceInspectionArray, err := GetServices(client)
+				if err != nil {
+					return err
+				}
+				resourceInspections = append(resourceInspections, resourceInspectionArray...)
+
+				ResourceIngressArray, resourceInspectionArray, err := GetIngress(client)
+				if err != nil {
+					return err
+				}
+				resourceInspections = append(resourceInspections, resourceInspectionArray...)
+
+				clusterCore.Workloads = CoreWorkloadArray
+				clusterCore.Nodes = CoreNodeArray
+				clusterCore.Inspections = coreInspections
+
+				clusterNode.Nodes = NodeNodeArray
+				clusterNode.Inspections = nodeInspections
+
+				clusterResource.Workloads = ResourceWorkloadArray
+				clusterResource.Namespace = ResourceNamespaceArray
+				//clusterResource.PersistentVolumeClaim = ResourcePersistentVolumeClaimArray
+				clusterResource.Service = ResourceServiceArray
+				clusterResource.Ingress = ResourceIngressArray
+				clusterResource.Inspections = resourceInspections
+
+				kubernetes = append(kubernetes, &apis.Kubernetes{
+					ClusterID:       k.ClusterID,
+					ClusterName:     k.ClusterName,
+					ClusterCore:     clusterCore,
+					ClusterNode:     clusterNode,
+					ClusterResource: clusterResource,
+				})
+			}
 		}
-		coreInspections = append(coreInspections, coreInspectionArray...)
-		resourceInspections = append(resourceInspections, resourceInspectionArray...)
-
-		CoreNodeArray, NodeNodeArray, coreInspectionArray, nodeInspectionArray, err := GetNodes(name, client)
-		if err != nil {
-			return err
-		}
-		coreInspections = append(coreInspections, coreInspectionArray...)
-		nodeInspections = append(nodeInspections, nodeInspectionArray...)
-
-		ResourceNamespaceArray, resourceInspectionArray, err := GetNamespaces(name, client)
-		if err != nil {
-			return err
-		}
-		resourceInspections = append(resourceInspections, resourceInspectionArray...)
-
-		//ResourcePersistentVolumeClaimArray, resourceInspectionArray, err := GetPersistentVolumeClaims(name, client)
-		//if err != nil {
-		//	return err
-		//}
-		//resourceInspections = append(resourceInspections, resourceInspectionArray...)
-
-		ResourceServiceArray, resourceInspectionArray, err := GetServices(name, client)
-		if err != nil {
-			return err
-		}
-		resourceInspections = append(resourceInspections, resourceInspectionArray...)
-
-		ResourceIngressArray, resourceInspectionArray, err := GetIngress(name, client)
-		if err != nil {
-			return err
-		}
-		resourceInspections = append(resourceInspections, resourceInspectionArray...)
-
-		clusterCore.Workloads = CoreWorkloadArray
-		clusterCore.Nodes = CoreNodeArray
-		clusterCore.Inspections = coreInspections
-
-		clusterNode.Nodes = NodeNodeArray
-		clusterNode.Inspections = nodeInspections
-
-		clusterResource.Workloads = ResourceWorkloadArray
-		clusterResource.Namespace = ResourceNamespaceArray
-		//clusterResource.PersistentVolumeClaim = ResourcePersistentVolumeClaimArray
-		clusterResource.Service = ResourceServiceArray
-		clusterResource.Ingress = ResourceIngressArray
-		clusterResource.Inspections = resourceInspections
-
-		report.Kubernetes[name].ClusterCore = clusterCore
-		report.Kubernetes[name].ClusterNode = clusterNode
-		report.Kubernetes[name].ClusterResource = clusterResource
 	}
 
-	data, err := json.Marshal(report.Kubernetes)
-	if err != nil {
-		return err
+	report = &apis.Report{
+		ID: common.GetUUID(),
+		Global: &apis.Global{
+			Name:       record.Name,
+			Rating:     0,
+			ReportTime: time.Now().Format(time.DateTime),
+		},
+		Kubernetes: kubernetes,
 	}
-
-	reportID := common.GetUUID()
-	rating := 0
-	reportTime := time.Now().Format(time.DateTime)
-	err = db.CreateReport(reportID, record.Name, reportTime, string(data), rating)
+	err = db.CreateReport(report)
 	if err != nil {
 		return err
 	}
 
 	record.EndTime = time.Now().Format(time.DateTime)
-	record.ReportID = reportID
+	record.ReportID = report.ID
 	err = db.CreateRecord(record)
 	if err != nil {
 		return err

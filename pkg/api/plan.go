@@ -83,6 +83,20 @@ func CreatePlan() http.Handler {
 			plan.Name = "巡检计划"
 		}
 
+		if plan.TemplateID == "" {
+			templates, err := db.ListTemplate()
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if len(templates) == 0 {
+				rw.Write([]byte("该计划没有对应的模版"))
+				return
+			}
+
+			plan.TemplateID = templates[0].ID
+		}
+
 		err = db.CreatePlan(plan)
 		if err != nil {
 			log.Fatal(err)

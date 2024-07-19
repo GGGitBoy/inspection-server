@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
-	"inspection-server/pkg/config"
 	"io"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -43,17 +42,12 @@ import (
 //	return nil
 //}
 
-func GetNodes(name string, client *apis.Client) ([]*apis.Node, []*apis.Node, []*apis.Inspection, []*apis.Inspection, error) {
+func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node, []*apis.Node, []*apis.Inspection, []*apis.Inspection, error) {
 	coreNodeArray := apis.NewNodes()
 	nodeNodeArray := apis.NewNodes()
 
 	coreInspections := apis.NewInspections()
 	nodeInspections := apis.NewInspections()
-
-	globalConfig, err := config.ReadConfigFile()
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
 
 	set := labels.Set(map[string]string{"name": "inspection-agent"})
 	podList, err := client.Clientset.CoreV1().Pods(common.InspectionNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: set.String()})
@@ -62,7 +56,7 @@ func GetNodes(name string, client *apis.Client) ([]*apis.Node, []*apis.Node, []*
 	}
 
 	for _, pod := range podList.Items {
-		for _, n := range globalConfig.Kubernetes[name].Nodes {
+		for _, n := range nodesConfig {
 			if slices.Contains(n.Names, pod.Spec.NodeName) {
 				node, err := client.Clientset.CoreV1().Nodes().Get(context.TODO(), pod.Spec.NodeName, metav1.GetOptions{})
 				if err != nil {
@@ -204,195 +198,188 @@ func (w *outputWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func GetWorkloads(name string, client *apis.Client) (*apis.Workload, *apis.Workload, []*apis.Inspection, []*apis.Inspection, error) {
+func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*apis.Workload, *apis.Workload, []*apis.Inspection, []*apis.Inspection, error) {
 	CoreWorkloadArray := apis.NewWorkload()
 	ResourceWorkloadArray := apis.NewWorkload()
 
 	coreInspections := apis.NewInspections()
 	resourceInspections := apis.NewInspections()
 
-	globalConfig, err := config.ReadConfigFile()
-	if err != nil {
-		return nil, nil, nil, nil, err
+	for _, deploy := range workloadConfig.Deployment {
+		deployment, err := client.Clientset.AppsV1().Deployments(deploy.Namespace).Get(context.TODO(), deploy.Name, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				continue
+			}
+			return nil, nil, nil, nil, err
+		}
+
+		state := "active"
+		var condition []apis.Condition
+		for _, c := range deployment.Status.Conditions {
+			if c.Status != "True" {
+				state = "deactive"
+			}
+			condition = append(condition, apis.Condition{
+				Type:   string(c.Type),
+				Status: string(c.Status),
+				Reason: c.Reason,
+			})
+		}
+
+		set := labels.Set(deployment.Spec.Selector.MatchLabels)
+		pods, err := GetPod(deploy.Regexp, deployment.Namespace, set, client.Clientset)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+
+		deploymentData := &apis.WorkloadData{
+			Name:      deployment.Name,
+			Namespace: deployment.Namespace,
+			Pods:      pods,
+			Status: &apis.Status{
+				State:     state,
+				Condition: condition,
+			},
+		}
+
+		if deploy.Core {
+			CoreWorkloadArray.Deployment = append(CoreWorkloadArray.Deployment, deploymentData)
+			coreInspections = append(coreInspections, apis.NewInspection("core deployment", "core deployment message", "Deployment", 3, true))
+		} else {
+			ResourceWorkloadArray.Deployment = append(ResourceWorkloadArray.Deployment, deploymentData)
+			resourceInspections = append(resourceInspections, apis.NewInspection("resource deployment", "resource deployment message", "Deployment", 1, true))
+		}
 	}
 
-	if globalConfig.Kubernetes[name].Enable {
-		for _, deploy := range globalConfig.Kubernetes[name].Workloads.Deployment {
-			deployment, err := client.Clientset.AppsV1().Deployments(deploy.Namespace).Get(context.TODO(), deploy.Name, metav1.GetOptions{})
-			if err != nil {
-				if k8serrors.IsNotFound(err) {
-					continue
-				}
-				return nil, nil, nil, nil, err
+	for _, ds := range workloadConfig.Daemonset {
+		daemonSet, err := client.Clientset.AppsV1().DaemonSets(ds.Namespace).Get(context.TODO(), ds.Name, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				continue
 			}
-
-			state := "active"
-			var condition []apis.Condition
-			for _, c := range deployment.Status.Conditions {
-				if c.Status != "True" {
-					state = "deactive"
-				}
-				condition = append(condition, apis.Condition{
-					Type:   string(c.Type),
-					Status: string(c.Status),
-					Reason: c.Reason,
-				})
-			}
-
-			set := labels.Set(deployment.Spec.Selector.MatchLabels)
-			pods, err := GetPod(deploy.Regexp, deployment.Namespace, set, client.Clientset)
-			if err != nil {
-				return nil, nil, nil, nil, err
-			}
-
-			deploymentData := &apis.WorkloadData{
-				Name:      deployment.Name,
-				Namespace: deployment.Namespace,
-				Pods:      pods,
-				Status: &apis.Status{
-					State:     state,
-					Condition: condition,
-				},
-			}
-
-			if deploy.Core {
-				CoreWorkloadArray.Deployment = append(CoreWorkloadArray.Deployment, deploymentData)
-				coreInspections = append(coreInspections, apis.NewInspection("core deployment", "core deployment message", "Deployment", 3, true))
-			} else {
-				ResourceWorkloadArray.Deployment = append(ResourceWorkloadArray.Deployment, deploymentData)
-				resourceInspections = append(resourceInspections, apis.NewInspection("resource deployment", "resource deployment message", "Deployment", 1, true))
-			}
+			return nil, nil, nil, nil, err
 		}
 
-		for _, ds := range globalConfig.Kubernetes[name].Workloads.Daemonset {
-			daemonSet, err := client.Clientset.AppsV1().DaemonSets(ds.Namespace).Get(context.TODO(), ds.Name, metav1.GetOptions{})
-			if err != nil {
-				if k8serrors.IsNotFound(err) {
-					continue
-				}
-				return nil, nil, nil, nil, err
-			}
-
-			var condition []apis.Condition
-			for _, c := range daemonSet.Status.Conditions {
-				condition = append(condition, apis.Condition{
-					Type:   string(c.Type),
-					Status: string(c.Status),
-					Reason: c.Reason,
-				})
-			}
-
-			set := labels.Set(daemonSet.Spec.Selector.MatchLabels)
-			pods, err := GetPod(ds.Regexp, daemonSet.Namespace, set, client.Clientset)
-			if err != nil {
-				return nil, nil, nil, nil, err
-			}
-
-			daemonSetData := &apis.WorkloadData{
-				Name:      daemonSet.Name,
-				Namespace: daemonSet.Namespace,
-				Pods:      pods,
-				Status: &apis.Status{
-					State:     "active",
-					Condition: condition,
-				},
-			}
-
-			if ds.Core {
-				CoreWorkloadArray.Daemonset = append(CoreWorkloadArray.Daemonset, daemonSetData)
-			} else {
-				ResourceWorkloadArray.Daemonset = append(ResourceWorkloadArray.Daemonset, daemonSetData)
-			}
+		var condition []apis.Condition
+		for _, c := range daemonSet.Status.Conditions {
+			condition = append(condition, apis.Condition{
+				Type:   string(c.Type),
+				Status: string(c.Status),
+				Reason: c.Reason,
+			})
 		}
 
-		for _, sts := range globalConfig.Kubernetes[name].Workloads.Statefulset {
-			statefulset, err := client.Clientset.AppsV1().StatefulSets(sts.Namespace).Get(context.TODO(), sts.Name, metav1.GetOptions{})
-			if err != nil {
-				if k8serrors.IsNotFound(err) {
-					continue
-				}
-				return nil, nil, nil, nil, err
-			}
-
-			state := "active"
-			var condition []apis.Condition
-			for _, c := range statefulset.Status.Conditions {
-				if c.Status != "True" {
-					state = "deactive"
-				}
-				condition = append(condition, apis.Condition{
-					Type:   string(c.Type),
-					Status: string(c.Status),
-					Reason: c.Reason,
-				})
-			}
-
-			set := labels.Set(statefulset.Spec.Selector.MatchLabels)
-			pods, err := GetPod(sts.Regexp, statefulset.Namespace, set, client.Clientset)
-			if err != nil {
-				return nil, nil, nil, nil, err
-			}
-
-			statefulSetData := &apis.WorkloadData{
-				Name:      statefulset.Name,
-				Namespace: statefulset.Namespace,
-				Pods:      pods,
-				Status: &apis.Status{
-					State:     state,
-					Condition: condition,
-				},
-			}
-
-			if sts.Core {
-				CoreWorkloadArray.Statefulset = append(CoreWorkloadArray.Statefulset, statefulSetData)
-			} else {
-				ResourceWorkloadArray.Statefulset = append(ResourceWorkloadArray.Statefulset, statefulSetData)
-			}
+		set := labels.Set(daemonSet.Spec.Selector.MatchLabels)
+		pods, err := GetPod(ds.Regexp, daemonSet.Namespace, set, client.Clientset)
+		if err != nil {
+			return nil, nil, nil, nil, err
 		}
 
-		for _, j := range globalConfig.Kubernetes[name].Workloads.Job {
-			job, err := client.Clientset.BatchV1().Jobs(j.Namespace).Get(context.TODO(), j.Name, metav1.GetOptions{})
-			if err != nil {
-				if k8serrors.IsNotFound(err) {
-					continue
-				}
-				return nil, nil, nil, nil, err
-			}
+		daemonSetData := &apis.WorkloadData{
+			Name:      daemonSet.Name,
+			Namespace: daemonSet.Namespace,
+			Pods:      pods,
+			Status: &apis.Status{
+				State:     "active",
+				Condition: condition,
+			},
+		}
 
-			state := "active"
-			var condition []apis.Condition
-			for _, c := range job.Status.Conditions {
-				if c.Status != "True" {
-					state = "deactive"
-				}
-				condition = append(condition, apis.Condition{
-					Type:   string(c.Type),
-					Status: string(c.Status),
-					Reason: c.Reason,
-				})
-			}
+		if ds.Core {
+			CoreWorkloadArray.Daemonset = append(CoreWorkloadArray.Daemonset, daemonSetData)
+		} else {
+			ResourceWorkloadArray.Daemonset = append(ResourceWorkloadArray.Daemonset, daemonSetData)
+		}
+	}
 
-			set := labels.Set(job.Spec.Selector.MatchLabels)
-			pods, err := GetPod(j.Regexp, j.Namespace, set, client.Clientset)
-			if err != nil {
-				return nil, nil, nil, nil, err
+	for _, sts := range workloadConfig.Statefulset {
+		statefulset, err := client.Clientset.AppsV1().StatefulSets(sts.Namespace).Get(context.TODO(), sts.Name, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				continue
 			}
+			return nil, nil, nil, nil, err
+		}
 
-			jobData := &apis.WorkloadData{
-				Name:      job.Name,
-				Namespace: job.Namespace,
-				Pods:      pods,
-				Status: &apis.Status{
-					State:     state,
-					Condition: condition,
-				},
+		state := "active"
+		var condition []apis.Condition
+		for _, c := range statefulset.Status.Conditions {
+			if c.Status != "True" {
+				state = "deactive"
 			}
+			condition = append(condition, apis.Condition{
+				Type:   string(c.Type),
+				Status: string(c.Status),
+				Reason: c.Reason,
+			})
+		}
 
-			if j.Core {
-				CoreWorkloadArray.Job = append(CoreWorkloadArray.Job, jobData)
-			} else {
-				ResourceWorkloadArray.Job = append(ResourceWorkloadArray.Job, jobData)
+		set := labels.Set(statefulset.Spec.Selector.MatchLabels)
+		pods, err := GetPod(sts.Regexp, statefulset.Namespace, set, client.Clientset)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+
+		statefulSetData := &apis.WorkloadData{
+			Name:      statefulset.Name,
+			Namespace: statefulset.Namespace,
+			Pods:      pods,
+			Status: &apis.Status{
+				State:     state,
+				Condition: condition,
+			},
+		}
+
+		if sts.Core {
+			CoreWorkloadArray.Statefulset = append(CoreWorkloadArray.Statefulset, statefulSetData)
+		} else {
+			ResourceWorkloadArray.Statefulset = append(ResourceWorkloadArray.Statefulset, statefulSetData)
+		}
+	}
+
+	for _, j := range workloadConfig.Job {
+		job, err := client.Clientset.BatchV1().Jobs(j.Namespace).Get(context.TODO(), j.Name, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				continue
 			}
+			return nil, nil, nil, nil, err
+		}
+
+		state := "active"
+		var condition []apis.Condition
+		for _, c := range job.Status.Conditions {
+			if c.Status != "True" {
+				state = "deactive"
+			}
+			condition = append(condition, apis.Condition{
+				Type:   string(c.Type),
+				Status: string(c.Status),
+				Reason: c.Reason,
+			})
+		}
+
+		set := labels.Set(job.Spec.Selector.MatchLabels)
+		pods, err := GetPod(j.Regexp, j.Namespace, set, client.Clientset)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+
+		jobData := &apis.WorkloadData{
+			Name:      job.Name,
+			Namespace: job.Namespace,
+			Pods:      pods,
+			Status: &apis.Status{
+				State:     state,
+				Condition: condition,
+			},
+		}
+
+		if j.Core {
+			CoreWorkloadArray.Job = append(CoreWorkloadArray.Job, jobData)
+		} else {
+			ResourceWorkloadArray.Job = append(ResourceWorkloadArray.Job, jobData)
 		}
 	}
 
@@ -464,7 +451,7 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 	return pods, nil
 }
 
-func GetNamespaces(name string, client *apis.Client) ([]*apis.Namespace, []*apis.Inspection, error) {
+func GetNamespaces(client *apis.Client) ([]*apis.Namespace, []*apis.Inspection, error) {
 	resourceInspections := apis.NewInspections()
 	namespaces := apis.NewNamespaces()
 
@@ -555,19 +542,7 @@ func GetNamespaces(name string, client *apis.Client) ([]*apis.Namespace, []*apis
 	return namespaces, resourceInspections, nil
 }
 
-func GetPersistentVolumeClaims(name string, client *apis.Client) ([]*apis.PersistentVolumeClaim, []*apis.Inspection, error) {
-	resourceInspections := apis.NewInspections()
-
-	persistentVolumeClaims := apis.NewPersistentVolumeClaims()
-	persistentVolumeClaims = append(persistentVolumeClaims, &apis.PersistentVolumeClaim{
-		Name:  "default",
-		State: "bound",
-	})
-	resourceInspections = append(resourceInspections, apis.NewInspection("PersistentVolumeClaim Inspection", "PersistentVolumeClaim Inspection message", "PersistentVolumeClaim", 1, true))
-	return persistentVolumeClaims, resourceInspections, nil
-}
-
-func GetServices(name string, client *apis.Client) ([]*apis.Service, []*apis.Inspection, error) {
+func GetServices(client *apis.Client) ([]*apis.Service, []*apis.Inspection, error) {
 	resourceInspections := apis.NewInspections()
 	services := apis.NewServices()
 
@@ -605,7 +580,7 @@ func GetServices(name string, client *apis.Client) ([]*apis.Service, []*apis.Ins
 	return services, resourceInspections, nil
 }
 
-func GetIngress(name string, client *apis.Client) ([]*apis.Ingress, []*apis.Inspection, error) {
+func GetIngress(client *apis.Client) ([]*apis.Ingress, []*apis.Inspection, error) {
 	resourceInspections := apis.NewInspections()
 	ingress := apis.NewIngress()
 

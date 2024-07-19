@@ -1,57 +1,14 @@
-package config
+package template
 
 import (
 	"context"
-	"encoding/json"
+	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
+	"inspection-server/pkg/db"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sync"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"log"
 )
-
-var MutexConfig sync.Mutex
-
-type Config struct {
-	Kubernetes map[string]*Kubernetes `json:"kubernetes"`
-}
-
-type Kubernetes struct {
-	Enable    bool       `json:"enable"`
-	Agent     string     `json:"agent"`
-	Workloads *Workloads `json:"workloads"`
-	Nodes     []*Node    `json:"nodes"`
-}
-
-type Workloads struct {
-	Deployment  []*WorkloadData `json:"deployment"`
-	Statefulset []*WorkloadData `json:"statefulset"`
-	Daemonset   []*WorkloadData `json:"daemonset"`
-	Job         []*WorkloadData `json:"job"`
-	Cronjob     []*WorkloadData `json:"cronjob"`
-}
-
-type WorkloadData struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	Regexp    string `json:"regexp"`
-	Core      bool   `json:"core"`
-}
-
-type Node struct {
-	Names    []string   `json:"names"`
-	Commands []*Command `json:"commands"`
-}
-
-type Command struct {
-	Description string `json:"description"`
-	Command     string `json:"command"`
-	Core        bool   `json:"core"`
-}
-
-func NewConfig() *Config {
-	return &Config{
-		Kubernetes: make(map[string]*Kubernetes),
-	}
-}
 
 func Register() error {
 	localKubernetesClient, err := common.GetKubernetesClient(common.LocalCluster)
@@ -64,7 +21,8 @@ func Register() error {
 		return err
 	}
 
-	config := NewConfig()
+	template := apis.NewTemplate()
+	kubernetesConfig := apis.NewKubernetesConfig()
 	for _, c := range clusters.Items {
 		kubernetesClient, err := common.GetKubernetesClient(c.GetName())
 		if err != nil {
@@ -81,8 +39,8 @@ func Register() error {
 			nodeNames = append(nodeNames, n.GetName())
 		}
 
-		workloads := &Workloads{
-			Deployment: []*WorkloadData{
+		workloadConfig := &apis.WorkloadConfig{
+			Deployment: []*apis.WorkloadDetailConfig{
 				{
 					Name:      "cattle-cluster-agent",
 					Namespace: "cattle-system",
@@ -111,7 +69,7 @@ func Register() error {
 					Namespace: "metrics-server",
 				},
 			},
-			Daemonset: []*WorkloadData{
+			Daemonset: []*apis.WorkloadDetailConfig{
 				{
 					Name:      "inspection-agent",
 					Namespace: "cattle-system",
@@ -134,10 +92,10 @@ func Register() error {
 				},
 			},
 		}
-		nodes := []*Node{
+		nodeConfig := []*apis.NodeConfig{
 			{
 				Names: nodeNames,
-				Commands: []*Command{
+				Commands: []*apis.CommandConfig{
 					{
 						Description: "Kubelet Health Check",
 						Command:     "curl -sS http://localhost:10248/healthz",
@@ -157,7 +115,7 @@ func Register() error {
 			},
 			{
 				Names: []string{},
-				Commands: []*Command{
+				Commands: []*apis.CommandConfig{
 					{
 						Description: "Test Error command",
 						Command:     "test-error",
@@ -166,14 +124,27 @@ func Register() error {
 			},
 		}
 
-		config.Kubernetes[c.GetName()] = &Kubernetes{
-			Enable:    true,
-			Workloads: workloads,
-			Nodes:     nodes,
+		spec, _, err := unstructured.NestedMap(c.UnstructuredContent(), "spec")
+		if err != nil {
+			log.Fatalf("Error getting spec: %v", err)
 		}
+
+		kubernetesConfig = append(kubernetesConfig, &apis.KubernetesConfig{
+			Enable:         true,
+			ClusterID:      c.GetName(),
+			ClusterName:    spec["displayName"].(string),
+			WorkloadConfig: workloadConfig,
+			NodeConfig:     nodeConfig,
+		})
 	}
 
-	err = WriteConfigFile(config)
+	template = &apis.Template{
+		ID:               common.GetUUID(),
+		Name:             "Default",
+		KubernetesConfig: kubernetesConfig,
+	}
+
+	err = db.CreateTemplate(template)
 	if err != nil {
 		return err
 	}
@@ -181,37 +152,37 @@ func Register() error {
 	return nil
 }
 
-func ReadConfigFile() (*Config, error) {
-	MutexConfig.Lock()
-	defer MutexConfig.Unlock()
-
-	content, err := common.ReadFile(common.ConfigFilePath)
-	if err != nil {
-		return nil, err
-	}
-
-	config := NewConfig()
-	err = json.Unmarshal(content, &config)
-	if err != nil {
-		return nil, err
-	}
-
-	return config, nil
-}
-
-func WriteConfigFile(c *Config) error {
-	MutexConfig.Lock()
-	defer MutexConfig.Unlock()
-
-	jsonData, err := json.Marshal(c)
-	if err != nil {
-		return err
-	}
-
-	err = common.WriteFile(common.ConfigFilePath, jsonData)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
+//func ReadConfigFile() (*Config, error) {
+//	MutexConfig.Lock()
+//	defer MutexConfig.Unlock()
+//
+//	content, err := common.ReadFile(common.ConfigFilePath)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	config := NewConfig()
+//	err = json.Unmarshal(content, &config)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return config, nil
+//}
+//
+//func WriteConfigFile(c *Config) error {
+//	MutexConfig.Lock()
+//	defer MutexConfig.Unlock()
+//
+//	jsonData, err := json.Marshal(c)
+//	if err != nil {
+//		return err
+//	}
+//
+//	err = common.WriteFile(common.ConfigFilePath, jsonData)
+//	if err != nil {
+//		return err
+//	}
+//
+//	return nil
+//}

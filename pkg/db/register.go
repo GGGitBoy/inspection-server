@@ -20,7 +20,8 @@ var (
 			timer TEXT,
 			cron TEXT,
 			mode INT,
-			state TEXT
+			state TEXT,
+			template_id TEXT
 		);`,
 		`CREATE TABLE IF NOT EXISTS record (
 			id TEXT NOT NULL PRIMARY KEY,
@@ -29,6 +30,11 @@ var (
 			end_time TEXT,
 			mode INT,
 			report_id TEXT
+		);`,
+		`CREATE TABLE IF NOT EXISTS template (
+			id TEXT NOT NULL PRIMARY KEY,
+			name TEXT,
+			data TEXT
 		);`,
 	}
 

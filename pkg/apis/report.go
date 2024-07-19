@@ -1,35 +1,15 @@
 package apis
 
-import (
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	restclient "k8s.io/client-go/rest"
-)
-
-type Client struct {
-	DynamicClient *dynamic.DynamicClient `json:"dynamic_client"`
-	Clientset     *kubernetes.Clientset  `json:"clientset"`
-	Config        *restclient.Config     `json:"config"`
-}
-
 type Report struct {
-	ID         string                 `json:"id"`
-	Global     *Global                `json:"global"`
-	Kubernetes map[string]*Kubernetes `json:"kubernetes"`
+	ID         string        `json:"id"`
+	Global     *Global       `json:"global"`
+	Kubernetes []*Kubernetes `json:"kubernetes"`
 }
 
 type Global struct {
 	Name       string `json:"name"`
 	Rating     int    `json:"rating"`
 	ReportTime string `json:"report_time"`
-}
-
-type Inspection struct {
-	Title    string `json:"title"`
-	Message  string `json:"message"`
-	Resource string `json:"resource"`
-	Level    int    `json:"level"`
-	Pass     bool   `json:"pass"`
 }
 
 type ClusterCore struct {
@@ -44,15 +24,24 @@ type ClusterNode struct {
 }
 
 type ClusterResource struct {
-	Workloads *Workload    `json:"workloads"`
-	Namespace []*Namespace `json:"namespace"`
-	//PersistentVolumeClaim []*PersistentVolumeClaim `json:"persistent_volume_claim"`
+	Workloads   *Workload     `json:"workloads"`
+	Namespace   []*Namespace  `json:"namespace"`
 	Service     []*Service    `json:"service"`
 	Ingress     []*Ingress    `json:"ingress"`
 	Inspections []*Inspection `json:"inspections"`
 }
 
+type Inspection struct {
+	Title    string `json:"title"`
+	Message  string `json:"message"`
+	Resource string `json:"resource"`
+	Level    int    `json:"level"`
+	Pass     bool   `json:"pass"`
+}
+
 type Kubernetes struct {
+	ClusterID       string           `json:"cluster_id"`
+	ClusterName     string           `json:"cluster_name"`
 	ClusterCore     *ClusterCore     `json:"cluster_core"`
 	ClusterNode     *ClusterNode     `json:"cluster_node"`
 	ClusterResource *ClusterResource `json:"cluster_resource"`
@@ -150,37 +139,15 @@ type CommandCheckResult struct {
 	Error       string `json:"error"`
 }
 
-type Plan struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Timer string `json:"timer"`
-	Cron  string `json:"cron"`
-	Mode  int    `json:"mode"`
-	State string `json:"state"`
-}
-
-type Record struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	StartTime string `json:"start_time"`
-	EndTime   string `json:"end_time"`
-	Mode      int    `json:"mode"`
-	ReportID  string `json:"report_id"`
-}
-
-func NewClients() map[string]*Client {
-	return make(map[string]*Client)
-}
-
 func NewReport() *Report {
 	return &Report{
 		Global:     &Global{},
-		Kubernetes: make(map[string]*Kubernetes),
+		Kubernetes: []*Kubernetes{},
 	}
 }
 
-func NewKubernetes() *Kubernetes {
-	return &Kubernetes{}
+func NewKubernetes() []*Kubernetes {
+	return []*Kubernetes{}
 }
 
 func NewClusterCore() *ClusterCore {
@@ -213,28 +180,11 @@ func NewClusterResource() *ClusterResource {
 			Job:         []*WorkloadData{},
 			Cronjob:     []*WorkloadData{},
 		},
-		Namespace: []*Namespace{},
-		//PersistentVolumeClaim: []*PersistentVolumeClaim{},
+		Namespace:   []*Namespace{},
 		Service:     []*Service{},
 		Ingress:     []*Ingress{},
 		Inspections: []*Inspection{},
 	}
-}
-
-func NewPlan() *Plan {
-	return &Plan{}
-}
-
-func NewRecord() *Record {
-	return &Record{}
-}
-
-func NewPlans() []*Plan {
-	return []*Plan{}
-}
-
-func NewRecords() []*Record {
-	return []*Record{}
 }
 
 func NewPods() []*Pod {
