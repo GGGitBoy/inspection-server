@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 	"inspection-server/pkg/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"log"
 	"net/http"
 )
@@ -35,25 +36,44 @@ func NewResource() *Resource {
 	}
 }
 
+type Cluster struct {
+	ClusterID   string `json:"cluster_id"`
+	ClusterName string `json:"cluster_name"`
+}
+
+func NewClusters() []*Cluster {
+	return []*Cluster{}
+}
+
 func GetClusters() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		var clusterNames []string
+		clusters := NewClusters()
 
 		localKubernetesClient, err := common.GetKubernetesClient(common.LocalCluster)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		clusters, err := localKubernetesClient.DynamicClient.Resource(common.ClusterRes).List(context.TODO(), metav1.ListOptions{})
+		clusterList, err := localKubernetesClient.DynamicClient.Resource(common.ClusterRes).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		for _, c := range clusters.Items {
-			clusterNames = append(clusterNames, c.GetName())
+		for _, c := range clusterList.Items {
+			spec, _, err := unstructured.NestedMap(c.UnstructuredContent(), "spec")
+			if err != nil {
+				log.Fatalf("Error getting spec: %v", err)
+			}
+
+			displayName := spec["displayName"].(string)
+			clusters = append(clusters, &Cluster{
+				ClusterID:   c.GetName(),
+				ClusterName: displayName,
+			})
+
 		}
 
-		jsonData, err := json.MarshalIndent(clusterNames, "", "\t")
+		jsonData, err := json.MarshalIndent(clusters, "", "\t")
 		if err != nil {
 			log.Fatal(err)
 		}

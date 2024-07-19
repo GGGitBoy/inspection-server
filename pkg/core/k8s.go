@@ -414,6 +414,7 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 		wg.Add(1)
 		fmt.Println(pod.Name)
 		go func(pod corev1.Pod) {
+			fmt.Println("pod name 3")
 			defer wg.Done()
 
 			getLog := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{TailLines: &line})
@@ -424,6 +425,7 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 			}
 			defer podLogs.Close()
 
+			fmt.Println("pod name 4")
 			logs, err := io.ReadAll(podLogs)
 			if err != nil {
 				fmt.Errorf("Error getting logs for pod %s: %v\n", pod.Name, err)
