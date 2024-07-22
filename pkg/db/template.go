@@ -126,7 +126,7 @@ func UpdateTemplate(template *apis.Template) error {
 		return err
 	}
 
-	_, err = DB.Exec("UPDATE plan SET name = ?, data = ? WHERE id = ?", template.Name, string(data), template.ID)
+	_, err = DB.Exec("UPDATE template SET name = ?, data = ? WHERE id = ?", template.Name, string(data), template.ID)
 	if err != nil {
 		return err
 	}
