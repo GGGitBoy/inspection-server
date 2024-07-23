@@ -4,6 +4,7 @@ import (
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
 	"inspection-server/pkg/db"
+	"inspection-server/pkg/send"
 	"time"
 )
 
@@ -126,6 +127,18 @@ func Inspection(plan *apis.Plan) error {
 	err = db.CreateRecord(record)
 	if err != nil {
 		return err
+	}
+
+	if plan.NotifyID != "" {
+		notify, err := db.GetNotify(plan.NotifyID)
+		if err != nil {
+			return err
+		}
+
+		err = send.Notify(notify.AppID, notify.AppSecret)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

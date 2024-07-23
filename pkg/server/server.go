@@ -32,6 +32,12 @@ func Start() http.Handler {
 	router.Methods(http.MethodPut).Path("/v1/templates/update").Handler(api.UpdateTemplate())
 	router.Methods(http.MethodDelete).Path("/v1/templates/delete/{id}").Handler(api.DeleteTemplate())
 
+	router.Methods(http.MethodGet).Path("/v1/notify/get/{id}").Handler(api.GetNotify())
+	router.Methods(http.MethodGet).Path("/v1/notify/list").Handler(api.ListNotify())
+	router.Methods(http.MethodPost).Path("/v1/notify/create").Handler(api.CreateNotify())
+	router.Methods(http.MethodPut).Path("/v1/notify/update").Handler(api.UpdateNotify())
+	router.Methods(http.MethodDelete).Path("/v1/notify/delete/{id}").Handler(api.DeleteNotify())
+
 	router.Methods(http.MethodGet).Path("/v1/clusters/list").Handler(api.GetClusters())
 	router.Methods(http.MethodGet).Path("/v1/clusters/{id}/resource/list").Handler(api.GetResource())
 

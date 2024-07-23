@@ -21,7 +21,8 @@ var (
 			cron TEXT,
 			mode INT,
 			state TEXT,
-			template_id TEXT
+			template_id TEXT,
+			notify_id TEXT
 		);`,
 		`CREATE TABLE IF NOT EXISTS record (
 			id TEXT NOT NULL PRIMARY KEY,
@@ -35,6 +36,12 @@ var (
 			id TEXT NOT NULL PRIMARY KEY,
 			name TEXT,
 			data TEXT
+		);`,
+		`CREATE TABLE IF NOT EXISTS notify (
+			id TEXT NOT NULL PRIMARY KEY,
+			name TEXT,
+			app_id TEXT,
+			app_secret TEXT
 		);`,
 	}
 

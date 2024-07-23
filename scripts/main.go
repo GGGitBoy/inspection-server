@@ -1,82 +1,120 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
-	"io/ioutil"
+	"io"
 	"log"
-	"time"
+	"mime/multipart"
+	"net/http"
+	"os"
 )
 
+const (
+	authURL       = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
+	uploadFileURL = "https://open.feishu.cn/open-apis/im/v1/files"
+	clientID      = "cli_a617001e7fb0100e"             // 替换为您的 Client ID
+	clientSecret  = "ZXWHYjckol1qpCfbiknVxedHxz2y6XMM" // 替换为您的 Client Secret
+	filePath      = "aa.pdf"                           // 替换为本地文件路径
+)
+
+// 获取访问令牌
+func getAccessToken() (string, error) {
+	data := map[string]string{
+		"app_id":     clientID,
+		"app_secret": clientSecret,
+	}
+	reqBody, err := json.Marshal(data)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	resp, err := http.Post(authURL, "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get access token: %s", resp.Status)
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	accessToken := result["tenant_access_token"].(string)
+	return accessToken, nil
+}
+
+// 上传文件到飞书
+func uploadFile(accessToken, filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	writer.WriteField("file_name", filePath)
+	writer.WriteField("file_type", "pdf")
+	part, err := writer.CreateFormFile("file", filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create form file: %w", err)
+	}
+
+	_, err = io.Copy(part, file)
+	if err != nil {
+		return "", fmt.Errorf("failed to copy file: %w", err)
+	}
+	writer.Close()
+
+	req, err := http.NewRequest("POST", uploadFileURL, body)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	fmt.Println(result)
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to upload file: %s", resp.Status)
+	}
+
+	data := result["data"].(map[string]interface{})
+	fileID := data["file_key"].(string)
+
+	return fileID, nil
+}
+
 func main() {
-	// 启动浏览器并连接到它
-	path, _ := launcher.LookPath()
-	u := launcher.New().Bin(path).MustLaunch()
-	browser := rod.New().ControlURL(u).MustConnect()
-	defer browser.MustClose()
-
-	page := browser.MustPage("http://54.180.112.220:30144/#/inspection-record/report-pdf-view/d491fea4-26a0-45a5-9285-b6f196d1750a")
-	page.MustWaitLoad()
-
-	time.Sleep(10 * time.Second)
-	//// 获取 document.body.scrollHeight 的值
-	//scrollHeight, err := page.Eval(`document.body.scrollHeight`)
-	//if err != nil {
-	//	fmt.Println("Error getting scrollHeight:", err)
-	//	return
-	//}
-
-	// 获取页面内容的尺寸
-	metrics := page.MustEval(`() => ({
-		width: document.body.scrollWidth,
-		height: document.body.scrollHeight,
-	})`)
-
-	width := metrics.Get("width").Int()
-	height := metrics.Get("height").Int()
-
-	fmt.Println(width)
-	fmt.Println(height)
-	// 设置视窗尺寸
-	page.MustSetViewport(width, height, 1, false)
-
-	// 确保所有懒加载内容都已加载
-	page.MustEval(`() => {
-		var totalHeight = 0;
-		var distance = 100;
-		var timer = setInterval(() => {
-			var scrollHeight = document.body.scrollHeight;
-			window.scrollBy(0, distance);
-			totalHeight += distance;
-			if(totalHeight >= scrollHeight){
-				clearInterval(timer);
-			}
-		}, 100);
-	}`)
-
-	//page.MustWaitElementsMoreThan(".iframe", 0)
-	fmt.Println("aaa")
-	time.Sleep(10 * time.Second)
-
-	//page.MustSetWindow(0, 0, 1280, 1280)
-	//page.MustSetViewport(1280, 1280, 1, false)
-
-	// 等待页面加载完成
-	// 等待特定元素达到一定数量
-
-	//page.MustWaitElementsMoreThan(".scrollbar-view", 0)
-
-	// 截取整个页面截图
-	screenshot, err := page.Screenshot(false, nil)
+	// 获取访问令牌
+	accessToken, err := getAccessToken()
 	if err != nil {
-		log.Fatalf("Failed to capture screenshot: %v", err)
+		log.Fatalf("Failed to get access token: %v", err)
 	}
 
-	err = ioutil.WriteFile("screenshot.png", screenshot, 0755)
+	// 上传文件并获取 file_id
+	fileID, err := uploadFile(accessToken, filePath)
 	if err != nil {
-		log.Fatalf("Failed to save screenshot: %v", err)
+		log.Fatalf("Failed to upload file: %v", err)
 	}
 
-	log.Println("Screenshot saved to screenshot.png")
+	log.Printf("File uploaded successfully with file_id: %s", fileID)
 }

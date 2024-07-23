@@ -8,6 +8,7 @@ type Plan struct {
 	Mode       int    `json:"mode"`
 	State      string `json:"state"`
 	TemplateID string `json:"template_id"`
+	NotifyID   string `json:"notify_id"`
 }
 
 func NewPlans() []*Plan {
