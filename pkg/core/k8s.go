@@ -7,6 +7,8 @@ import (
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
 	"io"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,6 +22,11 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+)
+
+var (
+	warning = "warning"
+	success = "success"
 )
 
 //func GetGlobal(report *apis.Report) error {
@@ -56,6 +63,11 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 	}
 
 	for _, pod := range podList.Items {
+		fmt.Println(len(podList.Items))
+		fmt.Println(pod.Name)
+	}
+
+	for _, pod := range podList.Items {
 		for _, n := range nodesConfig {
 			if slices.Contains(n.Names, pod.Spec.NodeName) {
 				node, err := client.Clientset.CoreV1().Nodes().Get(context.TODO(), pod.Spec.NodeName, metav1.GetOptions{})
@@ -75,14 +87,14 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 				allocatableMemory, _ := node.Status.Allocatable.Memory().AsInt64()
 				allocatablePods, _ := node.Status.Allocatable.Pods().AsInt64()
 
-				fmt.Println(podLimits)
-				fmt.Println(limitsCPU)
-				fmt.Println(limitsMemory)
-				fmt.Println(requestsCPU)
-				fmt.Println(requestsMemory)
-				fmt.Println(requestsPods)
-				fmt.Println("limitsCPU:")
-				fmt.Println(float64(limitsCPU) / float64(allocatableCPU))
+				//fmt.Println(podLimits)
+				//fmt.Println(limitsCPU)
+				//fmt.Println(limitsMemory)
+				//fmt.Println(requestsCPU)
+				//fmt.Println(requestsMemory)
+				//fmt.Println(requestsPods)
+				//fmt.Println("limitsCPU:")
+				//fmt.Println(float64(limitsCPU) / float64(allocatableCPU))
 				if float64(limitsCPU)/float64(allocatableCPU) > 0.8 {
 					nodeInspections = append(nodeInspections, apis.NewInspection("limitsCPU over 80%", "node Inspection message", "Node", 3, true))
 				}
@@ -108,6 +120,7 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 					commands = append(commands, c.Description+": "+c.Command)
 				}
 
+				fmt.Println(commands)
 				command := "/opt/inspection.sh"
 				stdout, stderr, err := ExecToPodThroughAPI(client.Clientset, client.Config, command, commands, pod.Namespace, pod.Name, "inspection-agent-container")
 				if err != nil {
@@ -153,6 +166,8 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 }
 
 func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, command string, commands []string, namespace string, podName string, containerName string) (string, string, error) {
+	fmt.Println(podName)
+	fmt.Println(namespace)
 	req := clientset.CoreV1().RESTClient().
 		Post().
 		Resource("pods").
@@ -205,6 +220,11 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 	coreInspections := apis.NewInspections()
 	resourceInspections := apis.NewInspections()
 
+	deployState := warning
+	dsState := warning
+	stsState := warning
+	jState := warning
+
 	for _, deploy := range workloadConfig.Deployment {
 		deployment, err := client.Clientset.AppsV1().Deployments(deploy.Namespace).Get(context.TODO(), deploy.Name, metav1.GetOptions{})
 		if err != nil {
@@ -214,12 +234,12 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			return nil, nil, nil, nil, err
 		}
 
-		state := "active"
+		if isDeploymentAvailable(deployment) {
+			deployState = success
+		}
+
 		var condition []apis.Condition
 		for _, c := range deployment.Status.Conditions {
-			if c.Status != "True" {
-				state = "deactive"
-			}
 			condition = append(condition, apis.Condition{
 				Type:   string(c.Type),
 				Status: string(c.Status),
@@ -238,7 +258,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			Namespace: deployment.Namespace,
 			Pods:      pods,
 			Status: &apis.Status{
-				State:     state,
+				State:     deployState,
 				Condition: condition,
 			},
 		}
@@ -261,6 +281,10 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			return nil, nil, nil, nil, err
 		}
 
+		if isDaemonSetAvailable(daemonSet) {
+			dsState = success
+		}
+
 		var condition []apis.Condition
 		for _, c := range daemonSet.Status.Conditions {
 			condition = append(condition, apis.Condition{
@@ -281,7 +305,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			Namespace: daemonSet.Namespace,
 			Pods:      pods,
 			Status: &apis.Status{
-				State:     "active",
+				State:     dsState,
 				Condition: condition,
 			},
 		}
@@ -302,12 +326,12 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			return nil, nil, nil, nil, err
 		}
 
-		state := "active"
+		if isStatefulSetAvailable(statefulset) {
+			stsState = success
+		}
+
 		var condition []apis.Condition
 		for _, c := range statefulset.Status.Conditions {
-			if c.Status != "True" {
-				state = "deactive"
-			}
 			condition = append(condition, apis.Condition{
 				Type:   string(c.Type),
 				Status: string(c.Status),
@@ -326,7 +350,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			Namespace: statefulset.Namespace,
 			Pods:      pods,
 			Status: &apis.Status{
-				State:     state,
+				State:     stsState,
 				Condition: condition,
 			},
 		}
@@ -347,12 +371,12 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			return nil, nil, nil, nil, err
 		}
 
-		state := "active"
+		if isJobCompleted(job) {
+			jState = success
+		}
+
 		var condition []apis.Condition
 		for _, c := range job.Status.Conditions {
-			if c.Status != "True" {
-				state = "deactive"
-			}
 			condition = append(condition, apis.Condition{
 				Type:   string(c.Type),
 				Status: string(c.Status),
@@ -371,7 +395,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			Namespace: job.Namespace,
 			Pods:      pods,
 			Status: &apis.Status{
-				State:     state,
+				State:     jState,
 				Condition: condition,
 			},
 		}
@@ -648,4 +672,25 @@ func getResourceList(val string) corev1.ResourceList {
 		return corev1.ResourceList{}
 	}
 	return result
+}
+
+func isDeploymentAvailable(deployment *appsv1.Deployment) bool {
+	for _, condition := range deployment.Status.Conditions {
+		if (condition.Type == "Failed" && condition.Status == "False") || condition.Reason == "Error" {
+			return false
+		}
+	}
+	return deployment.Status.AvailableReplicas >= *deployment.Spec.Replicas
+}
+
+func isDaemonSetAvailable(daemonset *appsv1.DaemonSet) bool {
+	return daemonset.Status.NumberAvailable >= daemonset.Status.DesiredNumberScheduled
+}
+
+func isStatefulSetAvailable(statefulset *appsv1.StatefulSet) bool {
+	return statefulset.Status.ReadyReplicas >= *statefulset.Spec.Replicas
+}
+
+func isJobCompleted(job *batchv1.Job) bool {
+	return job.Status.Succeeded >= *job.Spec.Completions
 }

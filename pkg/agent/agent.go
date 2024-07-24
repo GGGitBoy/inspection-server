@@ -160,12 +160,18 @@ func getDaemonSet() *applyappsv1.DaemonSetApplyConfiguration {
 				WithSpec(applycorev1.PodSpec().
 					WithContainers(applycorev1.Container().
 						WithName("inspection-agent-container").
-						WithImage("dockerrrboy/inspection-agent").
+						//WithImage("dockerrrboy/inspection-agent").
+						WithImage("alpine:latest").
 						WithSecurityContext(
 							applycorev1.SecurityContext().
 								WithAllowPrivilegeEscalation(true).
 								WithPrivileged(true)).
+						WithStdin(true).
+						WithTTY(false).
 						WithVolumeMounts(
+							applycorev1.VolumeMount().
+								WithName("host").
+								WithMountPath("/"),
 							//applycorev1.VolumeMount().
 							//	WithName("docker-socket").
 							//	WithMountPath("/var/run/docker.sock"),
@@ -184,6 +190,10 @@ func getDaemonSet() *applyappsv1.DaemonSetApplyConfiguration {
 					WithHostNetwork(true).
 					WithServiceAccountName("inspection-agent").
 					WithVolumes(
+						applycorev1.Volume().
+							WithName("host").
+							WithHostPath(applycorev1.HostPathVolumeSource().
+								WithPath("/")),
 						//applycorev1.Volume().
 						//	WithName("docker-socket").
 						//	WithHostPath(applycorev1.HostPathVolumeSource().

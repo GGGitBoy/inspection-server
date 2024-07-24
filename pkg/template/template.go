@@ -97,13 +97,43 @@ func Register() error {
 				Names: nodeNames,
 				Commands: []*apis.CommandConfig{
 					{
-						Description: "Kubelet Health Check",
-						Command:     "curl -sS http://localhost:10248/healthz",
+						Description: "API Server Ready Check",
+						Command:     "kubectl get --raw='/readyz'",
 						Core:        true,
 					},
 					{
-						Description: "API Server Ready Check",
-						Command:     "kubectl get --raw='/readyz'",
+						Description: "API Server Live Check",
+						Command:     "kubectl get --raw='/livez'",
+						Core:        true,
+					},
+					{
+						Description: "ETCD Ready Check",
+						Command:     "kubectl get --raw='/readyz/etcd'",
+						Core:        true,
+					},
+					{
+						Description: "ETCD Live Check",
+						Command:     "kubectl get --raw='/livez/etcd'",
+						Core:        true,
+					},
+					{
+						Description: "Kubelet Health Check",
+						Command:     "curl -sS http://localhost:10248/healthz",
+						Core:        false,
+					},
+					{
+						Description: "KubeProxy Health Check",
+						Command:     "curl -sS http://localhost:10256/healthz > /dev/null 2>&1 && echo ok || { curl -sS http://localhost:10256/healthz; }",
+						Core:        false,
+					},
+					{
+						Description: "Containerd Health Check",
+						Command:     "crictl pods > /dev/null 2>&1 && echo ok || { crictl pods; }",
+						Core:        false,
+					},
+					{
+						Description: "Docker Health Check",
+						Command:     "docker ps > /dev/null 2>&1 && echo ok || { docker ps; }",
 						Core:        false,
 					},
 					{
