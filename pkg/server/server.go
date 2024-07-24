@@ -37,6 +37,7 @@ func Start() http.Handler {
 	router.Methods(http.MethodPost).Path("/v1/notify/create").Handler(api.CreateNotify())
 	router.Methods(http.MethodPut).Path("/v1/notify/update").Handler(api.UpdateNotify())
 	router.Methods(http.MethodDelete).Path("/v1/notify/delete/{id}").Handler(api.DeleteNotify())
+	router.Methods(http.MethodPost).Path("/v1/notify/test").Handler(api.TestNotify())
 
 	router.Methods(http.MethodGet).Path("/v1/clusters/list").Handler(api.GetClusters())
 	router.Methods(http.MethodGet).Path("/v1/clusters/{id}/resource/list").Handler(api.GetResource())

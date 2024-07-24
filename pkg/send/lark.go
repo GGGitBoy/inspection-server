@@ -6,15 +6,14 @@ import (
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
-	"inspection-server/pkg/common"
 	"os"
 )
 
-func Notify(appID, appSecret string) error {
+func Notify(appID, appSecret, fileName, filePath string) error {
 	// 创建 Client
 	client := lark.NewClient(appID, appSecret)
 	// 创建请求对象
-	file, err := os.Open(common.PrintPDFPath)
+	file, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
@@ -23,7 +22,7 @@ func Notify(appID, appSecret string) error {
 	createFileReq := larkim.NewCreateFileReqBuilder().
 		Body(larkim.NewCreateFileReqBodyBuilder().
 			FileType(`pdf`).
-			FileName(`inspection.pdf`).
+			FileName(fileName).
 			File(file).
 			Build()).
 		Build()

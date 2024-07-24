@@ -12,4 +12,6 @@ RUN ls /usr/share/zoneinfo/Asia/Shanghai
 
 COPY bin/inspection-server /inspection-server
 
+COPY test.pdf /opt/test.pdf
+
 CMD ["/inspection-server"]

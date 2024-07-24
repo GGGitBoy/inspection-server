@@ -6,6 +6,7 @@ import (
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
 	"inspection-server/pkg/db"
+	"inspection-server/pkg/send"
 	"io"
 	"log"
 	"net/http"
@@ -112,5 +113,27 @@ func DeleteNotify() http.Handler {
 		if err != nil {
 			log.Fatal(err)
 		}
+	})
+}
+
+func TestNotify() http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		notify := apis.NewNotify()
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = json.Unmarshal(body, notify)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = send.Notify(notify.AppID, notify.AppSecret, common.SendTestPDFName, common.SendTestPDFPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		rw.Write([]byte("测试完成"))
 	})
 }

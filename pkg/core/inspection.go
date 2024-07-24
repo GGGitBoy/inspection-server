@@ -135,7 +135,7 @@ func Inspection(plan *apis.Plan) error {
 			return err
 		}
 
-		err = send.Notify(notify.AppID, notify.AppSecret)
+		err = send.Notify(notify.AppID, notify.AppSecret, common.PrintPDFName, common.PrintPDFPath)
 		if err != nil {
 			return err
 		}

@@ -12,11 +12,17 @@ var (
 	LocalCluster        = "local"
 	InspectionNamespace = "cattle-inspection-system"
 
-	WorkDir = "/Users/chenjiandao/jiandao/inspection-server/opt/"
-	//WorkDir = "/opt/"
+	//WorkDir = "/Users/chenjiandao/jiandao/inspection-server/opt/"
+	WorkDir = "/opt/"
 
-	ConfigFilePath      = WorkDir + "config/config.yml"
-	PrintShotPath       = WorkDir + "print/screenshot.png"
-	PrintPDFPath        = WorkDir + "print/report.pdf"
+	ConfigFilePath = WorkDir + "config/config.yml"
+
+	PrintShotPath = WorkDir + "print/screenshot.png"
+	PrintPDFPath  = WorkDir + "print/report.pdf"
+	PrintPDFName  = "report.pdf"
+
 	WriteKubeconfigPath = WorkDir + "kubeconfig/"
+
+	SendTestPDFPath = WorkDir + SendTestPDFName
+	SendTestPDFName = "test.pdf"
 )

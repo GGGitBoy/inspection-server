@@ -27,10 +27,9 @@ func GetNotify(notifyID string) (*apis.Notify, error) {
 		}
 	} else {
 		notify = &apis.Notify{
-			ID:        id,
-			Name:      name,
-			AppID:     appID,
-			AppSecret: appSecret,
+			ID:    id,
+			Name:  name,
+			AppID: appID,
 		}
 	}
 
@@ -63,10 +62,9 @@ func ListNotify() ([]*apis.Notify, error) {
 		}
 
 		notifys = append(notifys, &apis.Notify{
-			ID:        id,
-			Name:      name,
-			AppID:     appID,
-			AppSecret: appSecret,
+			ID:    id,
+			Name:  name,
+			AppID: appID,
 		})
 	}
 
