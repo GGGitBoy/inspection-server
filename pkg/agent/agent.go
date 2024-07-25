@@ -186,7 +186,7 @@ func getDaemonSet() *applyappsv1.DaemonSetApplyConfiguration {
 							//	WithMountPath("/etc/docker"),
 							applycorev1.VolumeMount().
 								WithName("inspection-agent-sh").
-								WithMountPath("/opt"))).
+								WithMountPath("/opt/inspection"))).
 					WithHostNetwork(true).
 					WithServiceAccountName("inspection-agent").
 					WithVolumes(

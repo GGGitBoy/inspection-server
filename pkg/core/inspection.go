@@ -45,56 +45,53 @@ func Inspection(plan *apis.Plan) error {
 				nodeInspections := apis.NewInspections()
 				resourceInspections := apis.NewInspections()
 
-				CoreWorkloadArray, ResourceWorkloadArray, coreInspectionArray, resourceInspectionArray, err := GetWorkloads(client, k.WorkloadConfig)
+				NodeNodeArray, nodeInspectionArray, err := GetNodes(client, k.ClusterNodeConfig.NodeConfig)
 				if err != nil {
 					return err
 				}
-				coreInspections = append(coreInspections, coreInspectionArray...)
-				resourceInspections = append(resourceInspections, resourceInspectionArray...)
-
-				CoreNodeArray, NodeNodeArray, coreInspectionArray, nodeInspectionArray, err := GetNodes(client, k.NodeConfig)
-				if err != nil {
-					return err
-				}
-				coreInspections = append(coreInspections, coreInspectionArray...)
 				nodeInspections = append(nodeInspections, nodeInspectionArray...)
 
-				ResourceNamespaceArray, resourceInspectionArray, err := GetNamespaces(client)
+				ResourceWorkloadArray, resourceInspectionArray, err := GetWorkloads(client, k.ClusterResourceConfig.WorkloadConfig)
 				if err != nil {
 					return err
 				}
 				resourceInspections = append(resourceInspections, resourceInspectionArray...)
 
-				//ResourcePersistentVolumeClaimArray, resourceInspectionArray, err := GetPersistentVolumeClaims(name, client)
-				//if err != nil {
-				//	return err
-				//}
-				//resourceInspections = append(resourceInspections, resourceInspectionArray...)
+				if k.ClusterResourceConfig.NamespaceConfig.Enable {
+					ResourceNamespaceArray, resourceInspectionArray, err := GetNamespaces(client)
+					if err != nil {
+						return err
+					}
 
-				ResourceServiceArray, resourceInspectionArray, err := GetServices(client)
-				if err != nil {
-					return err
+					clusterResource.Namespace = ResourceNamespaceArray
+					resourceInspections = append(resourceInspections, resourceInspectionArray...)
 				}
-				resourceInspections = append(resourceInspections, resourceInspectionArray...)
 
-				ResourceIngressArray, resourceInspectionArray, err := GetIngress(client)
-				if err != nil {
-					return err
+				if k.ClusterResourceConfig.ServiceConfig.Enable {
+					ResourceServiceArray, resourceInspectionArray, err := GetServices(client)
+					if err != nil {
+						return err
+					}
+
+					clusterResource.Service = ResourceServiceArray
+					resourceInspections = append(resourceInspections, resourceInspectionArray...)
 				}
-				resourceInspections = append(resourceInspections, resourceInspectionArray...)
 
-				clusterCore.Workloads = CoreWorkloadArray
-				clusterCore.Nodes = CoreNodeArray
-				clusterCore.Inspections = coreInspections
+				if k.ClusterResourceConfig.ServiceConfig.Enable {
+					ResourceIngressArray, resourceInspectionArray, err := GetIngress(client)
+					if err != nil {
+						return err
+					}
+
+					clusterResource.Ingress = ResourceIngressArray
+					resourceInspections = append(resourceInspections, resourceInspectionArray...)
+				}
 
 				clusterNode.Nodes = NodeNodeArray
-				clusterNode.Inspections = nodeInspections
-
 				clusterResource.Workloads = ResourceWorkloadArray
-				clusterResource.Namespace = ResourceNamespaceArray
-				//clusterResource.PersistentVolumeClaim = ResourcePersistentVolumeClaimArray
-				clusterResource.Service = ResourceServiceArray
-				clusterResource.Ingress = ResourceIngressArray
+
+				clusterCore.Inspections = coreInspections
+				clusterNode.Inspections = nodeInspections
 				clusterResource.Inspections = resourceInspections
 
 				kubernetes = append(kubernetes, &apis.Kubernetes{

@@ -39,107 +39,49 @@ func Register() error {
 			nodeNames = append(nodeNames, n.GetName())
 		}
 
-		workloadConfig := &apis.WorkloadConfig{
-			Deployment: []*apis.WorkloadDetailConfig{
-				{
-					Name:      "cattle-cluster-agent",
-					Namespace: "cattle-system",
-					Core:      false,
-				},
-				{
-					Name:      "rancher-webhook",
-					Namespace: "cattle-system",
-					Core:      true,
-				},
-				{
-					Name:      "calico-kube-controllers",
-					Namespace: "kube-system",
-				},
-				{
-					Name:      "coredns",
-					Namespace: "kube-system",
-					Regexp:    "\\[(ERROR|WARNING)\\].*",
-				},
-				{
-					Name:      "coredns-autoscaler",
-					Namespace: "kube-system",
-				},
-				{
-					Name:      "calico-kube-controllers",
-					Namespace: "metrics-server",
-				},
-			},
-			Daemonset: []*apis.WorkloadDetailConfig{
-				{
-					Name:      "inspection-agent",
-					Namespace: "cattle-system",
-				},
-				{
-					Name:      "kube-api-auth",
-					Namespace: "cattle-system",
-				},
-				{
-					Name:      "cattle-node-agent",
-					Namespace: "cattle-system",
-				},
-				{
-					Name:      "nginx-ingress-controller",
-					Namespace: "ingress-nginx",
-				},
-				{
-					Name:      "canal",
-					Namespace: "kube-system",
-				},
-			},
-		}
-		nodeConfig := []*apis.NodeConfig{
+		clusterCoreConfig := apis.NewClusterCoreConfig()
+		clusterNodeConfig := apis.NewClusterNodeConfig()
+		clusterResourceConfig := apis.NewClusterResourceConfig()
+
+		clusterNodeConfig.NodeConfig = []*apis.NodeConfig{
 			{
 				Names: nodeNames,
 				Commands: []*apis.CommandConfig{
 					{
-						Description: "API Server Ready Check",
+						Description: "API Servedr Ready Check",
 						Command:     "kubectl get --raw='/readyz'",
-						Core:        true,
 					},
 					{
 						Description: "API Server Live Check",
 						Command:     "kubectl get --raw='/livez'",
-						Core:        true,
 					},
 					{
 						Description: "ETCD Ready Check",
 						Command:     "kubectl get --raw='/readyz/etcd'",
-						Core:        true,
 					},
 					{
 						Description: "ETCD Live Check",
 						Command:     "kubectl get --raw='/livez/etcd'",
-						Core:        true,
 					},
 					{
 						Description: "Kubelet Health Check",
 						Command:     "curl -sS http://localhost:10248/healthz",
-						Core:        false,
 					},
 					{
 						Description: "KubeProxy Health Check",
 						Command:     "curl -sS http://localhost:10256/healthz > /dev/null 2>&1 && echo ok || { curl -sS http://localhost:10256/healthz; }",
-						Core:        false,
 					},
 					{
 						Description: "Containerd Health Check",
 						Command:     "crictl pods > /dev/null 2>&1 && echo ok || { crictl pods; }",
-						Core:        false,
 					},
 					{
 						Description: "Docker Health Check",
 						Command:     "docker ps > /dev/null 2>&1 && echo ok || { docker ps; }",
-						Core:        false,
 					},
 					{
 						Description: "Test Error command",
 						Command:     "test-error",
-						Core:        false,
 					},
 				},
 			},
@@ -154,17 +96,81 @@ func Register() error {
 			},
 		}
 
+		clusterResourceConfig = &apis.ClusterResourceConfig{
+			WorkloadConfig: &apis.WorkloadConfig{
+				Deployment: []*apis.WorkloadDetailConfig{
+					{
+						Name:      "cattle-cluster-agent",
+						Namespace: "cattle-system",
+					},
+					{
+						Name:      "rancher-webhook",
+						Namespace: "cattle-system",
+					},
+					{
+						Name:      "calico-kube-controllers",
+						Namespace: "kube-system",
+					},
+					{
+						Name:      "coredns",
+						Namespace: "kube-system",
+						Regexp:    "\\[(ERROR|WARNING)\\].*",
+					},
+					{
+						Name:      "coredns-autoscaler",
+						Namespace: "kube-system",
+					},
+					{
+						Name:      "calico-kube-controllers",
+						Namespace: "metrics-server",
+					},
+				},
+				Daemonset: []*apis.WorkloadDetailConfig{
+					{
+						Name:      "inspection-agent",
+						Namespace: "cattle-system",
+					},
+					{
+						Name:      "kube-api-auth",
+						Namespace: "cattle-system",
+					},
+					{
+						Name:      "cattle-node-agent",
+						Namespace: "cattle-system",
+					},
+					{
+						Name:      "nginx-ingress-controller",
+						Namespace: "ingress-nginx",
+					},
+					{
+						Name:      "canal",
+						Namespace: "kube-system",
+					},
+				},
+			},
+			NamespaceConfig: &apis.NamespaceConfig{
+				Enable: true,
+			},
+			ServiceConfig: &apis.ServiceConfig{
+				Enable: true,
+			},
+			IngressConfig: &apis.IngressConfig{
+				Enable: true,
+			},
+		}
+
 		spec, _, err := unstructured.NestedMap(c.UnstructuredContent(), "spec")
 		if err != nil {
 			log.Fatalf("Error getting spec: %v", err)
 		}
 
 		kubernetesConfig = append(kubernetesConfig, &apis.KubernetesConfig{
-			Enable:         true,
-			ClusterID:      c.GetName(),
-			ClusterName:    spec["displayName"].(string),
-			WorkloadConfig: workloadConfig,
-			NodeConfig:     nodeConfig,
+			Enable:                true,
+			ClusterID:             c.GetName(),
+			ClusterName:           spec["displayName"].(string),
+			ClusterCoreConfig:     clusterCoreConfig,
+			ClusterNodeConfig:     clusterNodeConfig,
+			ClusterResourceConfig: clusterResourceConfig,
 		})
 	}
 

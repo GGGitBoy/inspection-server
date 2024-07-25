@@ -13,8 +13,6 @@ type Global struct {
 }
 
 type ClusterCore struct {
-	Workloads   *Workload     `json:"workloads"`
-	Nodes       []*Node       `json:"nodes"`
 	Inspections []*Inspection `json:"inspections"`
 }
 
@@ -32,11 +30,9 @@ type ClusterResource struct {
 }
 
 type Inspection struct {
-	Title    string `json:"title"`
-	Message  string `json:"message"`
-	Resource string `json:"resource"`
-	Level    int    `json:"level"`
-	Pass     bool   `json:"pass"`
+	Title   string `json:"title"`
+	Message string `json:"message"`
+	Level   int    `json:"level"`
 }
 
 type Kubernetes struct {
@@ -152,14 +148,6 @@ func NewKubernetes() []*Kubernetes {
 
 func NewClusterCore() *ClusterCore {
 	return &ClusterCore{
-		Workloads: &Workload{
-			Deployment:  []*WorkloadData{},
-			Statefulset: []*WorkloadData{},
-			Daemonset:   []*WorkloadData{},
-			Job:         []*WorkloadData{},
-			Cronjob:     []*WorkloadData{},
-		},
-		Nodes:       []*Node{},
 		Inspections: []*Inspection{},
 	}
 }
@@ -229,12 +217,10 @@ func NewInspections() []*Inspection {
 	return []*Inspection{}
 }
 
-func NewInspection(title, message, resources string, level int, pass bool) *Inspection {
+func NewInspection(title, message string, level int) *Inspection {
 	return &Inspection{
-		Title:    title,
-		Message:  message,
-		Resource: resources,
-		Level:    level,
-		Pass:     pass,
+		Title:   title,
+		Message: message,
+		Level:   level,
 	}
 }

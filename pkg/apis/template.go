@@ -7,11 +7,40 @@ type Template struct {
 }
 
 type KubernetesConfig struct {
-	Enable         bool            `json:"enable"`
-	ClusterID      string          `json:"cluster_id"`
-	ClusterName    string          `json:"cluster_name"`
-	WorkloadConfig *WorkloadConfig `json:"workloads"`
-	NodeConfig     []*NodeConfig   `json:"nodes"`
+	Enable                bool                   `json:"enable"`
+	ClusterID             string                 `json:"cluster_id"`
+	ClusterName           string                 `json:"cluster_name"`
+	ClusterCoreConfig     *ClusterCoreConfig     `json:"cluster_core_config"`
+	ClusterNodeConfig     *ClusterNodeConfig     `json:"cluster_node_config"`
+	ClusterResourceConfig *ClusterResourceConfig `json:"cluster_resource_config"`
+}
+
+type ClusterCoreConfig struct {
+	//EtcdHealthCheck
+	//APIServerHealthCheck
+}
+
+type ClusterNodeConfig struct {
+	NodeConfig []*NodeConfig `json:"node_config"`
+}
+
+type ClusterResourceConfig struct {
+	WorkloadConfig  *WorkloadConfig  `json:"workload_config"`
+	NamespaceConfig *NamespaceConfig `json:"namespace_config"`
+	ServiceConfig   *ServiceConfig   `json:"service_config"`
+	IngressConfig   *IngressConfig   `json:"ingress_config"`
+}
+
+type NamespaceConfig struct {
+	Enable bool `json:"enable"`
+}
+
+type ServiceConfig struct {
+	Enable bool `json:"enable"`
+}
+
+type IngressConfig struct {
+	Enable bool `json:"enable"`
 }
 
 type WorkloadConfig struct {
@@ -26,7 +55,6 @@ type WorkloadDetailConfig struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 	Regexp    string `json:"regexp"`
-	Core      bool   `json:"core"`
 }
 
 type NodeConfig struct {
@@ -37,7 +65,6 @@ type NodeConfig struct {
 type CommandConfig struct {
 	Description string `json:"description"`
 	Command     string `json:"command"`
-	Core        bool   `json:"core"`
 }
 
 func NewTemplate() *Template {
@@ -52,4 +79,23 @@ func NewTemplates() []*Template {
 
 func NewKubernetesConfig() []*KubernetesConfig {
 	return []*KubernetesConfig{}
+}
+
+func NewClusterCoreConfig() *ClusterCoreConfig {
+	return &ClusterCoreConfig{}
+}
+
+func NewClusterNodeConfig() *ClusterNodeConfig {
+	return &ClusterNodeConfig{
+		NodeConfig: []*NodeConfig{},
+	}
+}
+
+func NewClusterResourceConfig() *ClusterResourceConfig {
+	return &ClusterResourceConfig{
+		WorkloadConfig:  &WorkloadConfig{},
+		NamespaceConfig: &NamespaceConfig{},
+		ServiceConfig:   &ServiceConfig{},
+		IngressConfig:   &IngressConfig{},
+	}
 }

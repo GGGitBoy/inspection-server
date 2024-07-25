@@ -49,22 +49,14 @@ var (
 //	return nil
 //}
 
-func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node, []*apis.Node, []*apis.Inspection, []*apis.Inspection, error) {
-	coreNodeArray := apis.NewNodes()
+func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node, []*apis.Inspection, error) {
 	nodeNodeArray := apis.NewNodes()
-
-	coreInspections := apis.NewInspections()
 	nodeInspections := apis.NewInspections()
 
 	set := labels.Set(map[string]string{"name": "inspection-agent"})
 	podList, err := client.Clientset.CoreV1().Pods(common.InspectionNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: set.String()})
 	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	for _, pod := range podList.Items {
-		fmt.Println(len(podList.Items))
-		fmt.Println(pod.Name)
+		return nil, nil, err
 	}
 
 	for _, pod := range podList.Items {
@@ -72,7 +64,7 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 			if slices.Contains(n.Names, pod.Spec.NodeName) {
 				node, err := client.Clientset.CoreV1().Nodes().Get(context.TODO(), pod.Spec.NodeName, metav1.GetOptions{})
 				if err != nil {
-					return nil, nil, nil, nil, err
+					return nil, nil, err
 				}
 
 				podLimits := getResourceList(node.Annotations["management.cattle.io/pod-limits"])
@@ -96,23 +88,23 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 				//fmt.Println("limitsCPU:")
 				//fmt.Println(float64(limitsCPU) / float64(allocatableCPU))
 				if float64(limitsCPU)/float64(allocatableCPU) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection("limitsCPU over 80%", "node Inspection message", "Node", 3, true))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s limits CPU 超过 80%", pod.Spec.NodeName), fmt.Sprintf("limits CPU %d, allocatable CPU %d", limitsCPU, allocatableCPU), 2))
 				}
 
 				if float64(limitsMemory)/float64(allocatableMemory) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection("limitsMemory over 80%", "node Inspection message", "Node", 3, true))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s limits Memory 超过 80%", pod.Spec.NodeName), fmt.Sprintf("limits Memory %d, allocatable Memory %d", limitsMemory, allocatableMemory), 2))
 				}
 
 				if float64(requestsCPU)/float64(allocatableCPU) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection("requestsCPU over 80%", "node Inspection message", "Node", 3, true))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s requests CPU 超过 80%", pod.Spec.NodeName), fmt.Sprintf("requests CPU %d, allocatable CPU %d", requestsCPU, allocatableCPU), 2))
 				}
 
 				if float64(requestsMemory)/float64(allocatableMemory) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection("requestsMemory over 80%", "node Inspection message", "Node", 3, true))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s requests Memory 超过 80%", pod.Spec.NodeName), fmt.Sprintf("requests Memory %d, allocatable Memory %d", requestsMemory, allocatableMemory), 2))
 				}
 
 				if float64(requestsPods)/float64(allocatablePods) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection("requestsPods over 80%", "node Inspection message", "Node", 3, true))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s requests Pods超过 80%", pod.Spec.NodeName), fmt.Sprintf("requests Pods %d, allocatable Pods %d", requestsPods, allocatablePods), 2))
 				}
 
 				var commands []string
@@ -121,16 +113,22 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 				}
 
 				fmt.Println(commands)
-				command := "/opt/inspection.sh"
+				command := "/opt/inspection/inspection.sh"
 				stdout, stderr, err := ExecToPodThroughAPI(client.Clientset, client.Config, command, commands, pod.Namespace, pod.Name, "inspection-agent-container")
 				if err != nil {
-					return nil, nil, nil, nil, err
+					return nil, nil, err
 				}
 
 				var results []apis.CommandCheckResult
 				err = json.Unmarshal([]byte(stdout), &results)
 				if err != nil {
-					return nil, nil, nil, nil, err
+					return nil, nil, err
+				}
+
+				for _, r := range results {
+					if r.Error != "" {
+						nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s: %s 警告", pod.Spec.NodeName, r.Description), fmt.Sprintf("%s 检查报错 %s", r.Description, r.Error), 2))
+					}
 				}
 
 				nodeData := &apis.Node{
@@ -151,18 +149,12 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 					},
 				}
 
-				//if n.Core {
-				//	coreNodeArray = append(coreNodeArray, nodeData)
-				//} else {
-				//	nodeNodeArray =  append(nodeNodeArray, nodeData)
-				//}
 				nodeNodeArray = append(nodeNodeArray, nodeData)
-				nodeInspections = append(nodeInspections, apis.NewInspection("node Inspection", "node Inspection message", "Node", 3, true))
 			}
 		}
 	}
 
-	return coreNodeArray, nodeNodeArray, coreInspections, nodeInspections, nil
+	return nodeNodeArray, nodeInspections, nil
 }
 
 func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, command string, commands []string, namespace string, podName string, containerName string) (string, string, error) {
@@ -213,11 +205,8 @@ func (w *outputWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*apis.Workload, *apis.Workload, []*apis.Inspection, []*apis.Inspection, error) {
-	CoreWorkloadArray := apis.NewWorkload()
+func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*apis.Workload, []*apis.Inspection, error) {
 	ResourceWorkloadArray := apis.NewWorkload()
-
-	coreInspections := apis.NewInspections()
 	resourceInspections := apis.NewInspections()
 
 	deployState := warning
@@ -231,7 +220,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			if k8serrors.IsNotFound(err) {
 				continue
 			}
-			return nil, nil, nil, nil, err
+			return nil, nil, err
 		}
 
 		if isDeploymentAvailable(deployment) {
@@ -250,7 +239,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		set := labels.Set(deployment.Spec.Selector.MatchLabels)
 		pods, err := GetPod(deploy.Regexp, deployment.Namespace, set, client.Clientset)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, err
 		}
 
 		deploymentData := &apis.WorkloadData{
@@ -263,12 +252,9 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			},
 		}
 
-		if deploy.Core {
-			CoreWorkloadArray.Deployment = append(CoreWorkloadArray.Deployment, deploymentData)
-			coreInspections = append(coreInspections, apis.NewInspection("core deployment", "core deployment message", "Deployment", 3, true))
-		} else {
-			ResourceWorkloadArray.Deployment = append(ResourceWorkloadArray.Deployment, deploymentData)
-			resourceInspections = append(resourceInspections, apis.NewInspection("resource deployment", "resource deployment message", "Deployment", 1, true))
+		ResourceWorkloadArray.Deployment = append(ResourceWorkloadArray.Deployment, deploymentData)
+		if deployState == warning {
+			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Deployment %s 警告", deploymentData.Name), fmt.Sprintf("命名空间 %s 下的 Deployment %s 处于非健康状态", deploymentData.Namespace, deploymentData.Name), 2))
 		}
 	}
 
@@ -278,7 +264,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			if k8serrors.IsNotFound(err) {
 				continue
 			}
-			return nil, nil, nil, nil, err
+			return nil, nil, err
 		}
 
 		if isDaemonSetAvailable(daemonSet) {
@@ -297,7 +283,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		set := labels.Set(daemonSet.Spec.Selector.MatchLabels)
 		pods, err := GetPod(ds.Regexp, daemonSet.Namespace, set, client.Clientset)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, err
 		}
 
 		daemonSetData := &apis.WorkloadData{
@@ -310,10 +296,9 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			},
 		}
 
-		if ds.Core {
-			CoreWorkloadArray.Daemonset = append(CoreWorkloadArray.Daemonset, daemonSetData)
-		} else {
-			ResourceWorkloadArray.Daemonset = append(ResourceWorkloadArray.Daemonset, daemonSetData)
+		ResourceWorkloadArray.Daemonset = append(ResourceWorkloadArray.Daemonset, daemonSetData)
+		if dsState == warning {
+			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Daemonset %s 警告", daemonSetData.Name), fmt.Sprintf("命名空间 %s 下的 Daemonset %s 处于非健康状态", daemonSetData.Namespace, daemonSetData.Name), 2))
 		}
 	}
 
@@ -323,7 +308,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			if k8serrors.IsNotFound(err) {
 				continue
 			}
-			return nil, nil, nil, nil, err
+			return nil, nil, err
 		}
 
 		if isStatefulSetAvailable(statefulset) {
@@ -342,7 +327,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		set := labels.Set(statefulset.Spec.Selector.MatchLabels)
 		pods, err := GetPod(sts.Regexp, statefulset.Namespace, set, client.Clientset)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, err
 		}
 
 		statefulSetData := &apis.WorkloadData{
@@ -355,10 +340,9 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			},
 		}
 
-		if sts.Core {
-			CoreWorkloadArray.Statefulset = append(CoreWorkloadArray.Statefulset, statefulSetData)
-		} else {
-			ResourceWorkloadArray.Statefulset = append(ResourceWorkloadArray.Statefulset, statefulSetData)
+		ResourceWorkloadArray.Statefulset = append(ResourceWorkloadArray.Statefulset, statefulSetData)
+		if stsState == warning {
+			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Statefulset %s 警告", statefulSetData.Name), fmt.Sprintf("命名空间 %s 下的 Statefulset %s 处于非健康状态", statefulSetData.Namespace, statefulSetData.Name), 2))
 		}
 	}
 
@@ -368,7 +352,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			if k8serrors.IsNotFound(err) {
 				continue
 			}
-			return nil, nil, nil, nil, err
+			return nil, nil, err
 		}
 
 		if isJobCompleted(job) {
@@ -387,7 +371,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		set := labels.Set(job.Spec.Selector.MatchLabels)
 		pods, err := GetPod(j.Regexp, j.Namespace, set, client.Clientset)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, err
 		}
 
 		jobData := &apis.WorkloadData{
@@ -400,14 +384,13 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 			},
 		}
 
-		if j.Core {
-			CoreWorkloadArray.Job = append(CoreWorkloadArray.Job, jobData)
-		} else {
-			ResourceWorkloadArray.Job = append(ResourceWorkloadArray.Job, jobData)
+		ResourceWorkloadArray.Job = append(ResourceWorkloadArray.Job, jobData)
+		if jState == warning {
+			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Job %s 警告", jobData.Name), fmt.Sprintf("命名空间 %s 下的 Job %s 处于非健康状态", jobData.Namespace, jobData.Name), 2))
 		}
 	}
 
-	return CoreWorkloadArray, ResourceWorkloadArray, coreInspections, resourceInspections, nil
+	return ResourceWorkloadArray, resourceInspections, nil
 }
 
 func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernetes.Clientset) ([]*apis.Pod, error) {
@@ -539,12 +522,12 @@ func GetNamespaces(client *apis.Client) ([]*apis.Namespace, []*apis.Inspection, 
 
 		if len(resourceQuotaList.Items) == 0 {
 			emptyResourceQuota = true
-			resourceInspections = append(resourceInspections, apis.NewInspection("Namespace Inspection", "Namespace Inspection message", "Namespace", 1, false))
+			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("命名空间 %s 没有设置配额", n.Name), fmt.Sprintf(""), 1))
 		}
 
 		if (len(podList.Items) + len(serviceList.Items) + len(deploymentList.Items) + len(replicaSetList.Items) + len(statefulSetList.Items) + len(daemonSetList.Items) + len(jobList.Items) + len(secretList.Items) + len(configMapList.Items)) == 0 {
 			emptyResource = true
-			resourceInspections = append(resourceInspections, apis.NewInspection("emptyResource", "emptyResource", "Namespace", 1, false))
+			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("命名空间 %s 下资源为空", n.Name), fmt.Sprintf("检查对象为 Pod、Service、Deployment、Replicaset、Statefulset、Daemonset、Job、Secret、ConfigMap"), 1))
 		}
 
 		namespaces = append(namespaces, &apis.Namespace{
@@ -581,7 +564,7 @@ func GetServices(client *apis.Client) ([]*apis.Service, []*apis.Inspection, erro
 		endpoints, err := client.Clientset.CoreV1().Endpoints(s.Namespace).Get(context.TODO(), s.Name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				resourceInspections = append(resourceInspections, apis.NewInspection("找不到该 svc 对应的 endpoint", "Service Inspection message", "Service", 1, true))
+				resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("命名空间 %s 下 Service %s 找不到对应 endpoint", s.Namespace, s.Name), fmt.Sprintf(""), 1))
 				continue
 			}
 			return nil, nil, err
@@ -591,7 +574,7 @@ func GetServices(client *apis.Client) ([]*apis.Service, []*apis.Inspection, erro
 		var emptyEndpoints bool
 		if len(endpoints.Subsets) == 0 {
 			emptyEndpoints = true
-			resourceInspections = append(resourceInspections, apis.NewInspection("无效的 Service: %s/%s (Endpoints 没有 Subsets)\n", "Service Inspection message", "Service", 1, true))
+			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("命名空间 %s 下 Service %s 对应 Endpoints 没有 Subsets", s.Namespace, s.Name), fmt.Sprintf(""), 1))
 		}
 
 		services = append(services, &apis.Service{
@@ -644,6 +627,7 @@ func GetIngress(client *apis.Client) ([]*apis.Ingress, []*apis.Inspection, error
 	}
 
 	if len(duplicateIngress) > 0 {
+		var result []string
 		for NamespaceName, _ := range duplicateIngress {
 			parts := strings.Split(NamespaceName, "/")
 			for index, i := range ingress {
@@ -656,8 +640,10 @@ func GetIngress(client *apis.Client) ([]*apis.Ingress, []*apis.Inspection, error
 				}
 			}
 
-			resourceInspections = append(resourceInspections, apis.NewInspection("duplicate path Ingress", "Ingress Inspection message", "Ingress", 1, true))
+			result = append(result, NamespaceName)
 		}
+
+		resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Ingress %s 存在重复的 Path", strings.Join(result, ", ")), fmt.Sprintf(""), 1))
 	}
 
 	return ingress, resourceInspections, nil
