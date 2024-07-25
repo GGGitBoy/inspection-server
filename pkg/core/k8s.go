@@ -88,23 +88,24 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 				//fmt.Println("limitsCPU:")
 				//fmt.Println(float64(limitsCPU) / float64(allocatableCPU))
 				if float64(limitsCPU)/float64(allocatableCPU) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s limits CPU 超过 80%", pod.Spec.NodeName), fmt.Sprintf("limits CPU %d, allocatable CPU %d", limitsCPU, allocatableCPU), 2))
+					//nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s limits CPU 超过 80%", pod.Spec.NodeName), fmt.Sprintf("limits CPU %d, allocatable CPU %d", limitsCPU, allocatableCPU), 2))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s limits CPU 超过 80%", pod.Spec.NodeName), fmt.Sprintf(""), 2))
 				}
 
 				if float64(limitsMemory)/float64(allocatableMemory) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s limits Memory 超过 80%", pod.Spec.NodeName), fmt.Sprintf("limits Memory %d, allocatable Memory %d", limitsMemory, allocatableMemory), 2))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s limits Memory 超过 80%", pod.Spec.NodeName), fmt.Sprintf(""), 2))
 				}
 
 				if float64(requestsCPU)/float64(allocatableCPU) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s requests CPU 超过 80%", pod.Spec.NodeName), fmt.Sprintf("requests CPU %d, allocatable CPU %d", requestsCPU, allocatableCPU), 2))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s requests CPU 超过 80%", pod.Spec.NodeName), fmt.Sprintf(""), 2))
 				}
 
 				if float64(requestsMemory)/float64(allocatableMemory) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s requests Memory 超过 80%", pod.Spec.NodeName), fmt.Sprintf("requests Memory %d, allocatable Memory %d", requestsMemory, allocatableMemory), 2))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s requests Memory 超过 80%", pod.Spec.NodeName), fmt.Sprintf(""), 2))
 				}
 
 				if float64(requestsPods)/float64(allocatablePods) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s requests Pods超过 80%", pod.Spec.NodeName), fmt.Sprintf("requests Pods %d, allocatable Pods %d", requestsPods, allocatablePods), 2))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s requests Pods超过 80%", pod.Spec.NodeName), fmt.Sprintf(""), 2))
 				}
 
 				var commands []string
