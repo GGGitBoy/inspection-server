@@ -96,16 +96,18 @@ func Inspection(plan *apis.Plan) error {
 				clusterNode.Nodes = NodeNodeArray
 				clusterResource.Workloads = ResourceWorkloadArray
 
-				if len(allGrafanaInspections[k.ClusterName].ClusterCoreInspection) > 0 {
-					coreInspections = append(coreInspections, allGrafanaInspections[k.ClusterName].ClusterCoreInspection...)
-				}
+				if allGrafanaInspections[k.ClusterName] != nil {
+					if len(allGrafanaInspections[k.ClusterName].ClusterCoreInspection) > 0 {
+						coreInspections = append(coreInspections, allGrafanaInspections[k.ClusterName].ClusterCoreInspection...)
+					}
 
-				if len(allGrafanaInspections[k.ClusterName].ClusterNodeInspection) > 0 {
-					nodeInspections = append(nodeInspections, allGrafanaInspections[k.ClusterName].ClusterNodeInspection...)
-				}
+					if len(allGrafanaInspections[k.ClusterName].ClusterNodeInspection) > 0 {
+						nodeInspections = append(nodeInspections, allGrafanaInspections[k.ClusterName].ClusterNodeInspection...)
+					}
 
-				if len(allGrafanaInspections[k.ClusterName].ClusterResourceInspection) > 0 {
-					resourceInspections = append(resourceInspections, allGrafanaInspections[k.ClusterName].ClusterResourceInspection...)
+					if len(allGrafanaInspections[k.ClusterName].ClusterResourceInspection) > 0 {
+						resourceInspections = append(resourceInspections, allGrafanaInspections[k.ClusterName].ClusterResourceInspection...)
+					}
 				}
 
 				clusterCore.Inspections = coreInspections
