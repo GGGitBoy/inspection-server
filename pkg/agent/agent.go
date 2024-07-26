@@ -170,8 +170,8 @@ func getDaemonSet() *applyappsv1.DaemonSetApplyConfiguration {
 						WithTTY(false).
 						WithVolumeMounts(
 							applycorev1.VolumeMount().
-								WithName("host").
-								WithMountPath("/"),
+								WithName("inspection").
+								WithMountPath("/inspection"),
 							//applycorev1.VolumeMount().
 							//	WithName("docker-socket").
 							//	WithMountPath("/var/run/docker.sock"),
@@ -191,7 +191,7 @@ func getDaemonSet() *applyappsv1.DaemonSetApplyConfiguration {
 					WithServiceAccountName("inspection-agent").
 					WithVolumes(
 						applycorev1.Volume().
-							WithName("host").
+							WithName("inspection").
 							WithHostPath(applycorev1.HostPathVolumeSource().
 								WithPath("/")),
 						//applycorev1.Volume().
