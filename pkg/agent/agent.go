@@ -161,7 +161,11 @@ func getDaemonSet() *applyappsv1.DaemonSetApplyConfiguration {
 					WithContainers(applycorev1.Container().
 						WithName("inspection-agent-container").
 						//WithImage("dockerrrboy/inspection-agent").
-						WithImage("alpine:latest").
+						WithImage("dockerrrboy/inspection-agent:latest").
+						//WithEnv(
+						//	applycorev1.EnvVar().
+						//		WithName("PATH").
+						//		WithValue("$PATH:/inspection/usr/local/sbin:/inspection/usr/local/bin:/inspection/usr/sbin:/inspection/usr/bin:/inspection/sbin:/inspection/bin")).
 						WithSecurityContext(
 							applycorev1.SecurityContext().
 								WithAllowPrivilegeEscalation(true).

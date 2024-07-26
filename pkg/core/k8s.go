@@ -178,12 +178,14 @@ func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, c
 	for _, c := range commands {
 		req.Param("command", c)
 	}
+	fmt.Println("llll")
 
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
 		return "", "", err
 	}
 
+	fmt.Println("ggg")
 	var stdout, stderr string
 	stdoutWriter := &outputWriter{output: &stdout}
 	stderrWriter := &outputWriter{output: &stderr}
@@ -194,8 +196,15 @@ func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, c
 		Stderr: stderrWriter,
 		Tty:    false,
 	})
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	return stdout, stderr, err
+	fmt.Println(stdout)
+	fmt.Println(stderr)
+
+	fmt.Println("eee")
+	return stdout, stderr, nil
 }
 
 type outputWriter struct {
