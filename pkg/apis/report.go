@@ -60,6 +60,7 @@ type WorkloadData struct {
 
 type Node struct {
 	Name     string    `json:"name"`
+	HostIP   string    `json:"host_ip"`
 	Resource *Resource `json:"resource"`
 	Commands *Command  `json:"commands"`
 }

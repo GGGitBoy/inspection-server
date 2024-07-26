@@ -1,105 +1,140 @@
 package main
 
 import (
-	"context"
+	"crypto/tls"
+	"encoding/json"
 	"fmt"
-	lark "github.com/larksuite/oapi-sdk-go/v3"
-	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
-	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
-	"os"
+	"io"
+	"net/http"
+	"time"
 )
 
-const (
-	clientID     = "cli_a617001e7fb0100e"             // 替换为您的 Client ID
-	clientSecret = "ZXWHYjckol1qpCfbiknVxedHxz2y6XMM" // 替换为您的 Client Secret
-)
+type Alerting struct {
+	Data *Data `json:"data"`
+}
+
+type Data struct {
+	RuleGroups []RuleGroup      `json:"groups"`
+	Totals     map[string]int64 `json:"totals,omitempty"`
+}
+
+// swagger:model
+type RuleGroup struct {
+	// required: true
+	Name string `json:"name"`
+	// required: true
+	File string `json:"file"`
+	// In order to preserve rule ordering, while exposing type (alerting or recording)
+	// specific properties, both alerting and recording rules are exposed in the
+	// same array.
+	// required: true
+	Rules  []AlertingRule   `json:"rules"`
+	Totals map[string]int64 `json:"totals"`
+	// required: true
+	Interval       float64   `json:"interval"`
+	LastEvaluation time.Time `json:"lastEvaluation"`
+	EvaluationTime float64   `json:"evaluationTime"`
+}
+
+type AlertingRule struct {
+	// State can be "pending", "firing", "inactive".
+	// required: true
+	State string `json:"state,omitempty"`
+	// required: true
+	Name string `json:"name,omitempty"`
+	// required: true
+	Query    string  `json:"query,omitempty"`
+	Duration float64 `json:"duration,omitempty"`
+	// required: true
+	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// required: true
+	ActiveAt       *time.Time       `json:"activeAt,omitempty"`
+	Alerts         []Alert          `json:"alerts,omitempty"`
+	Totals         map[string]int64 `json:"totals,omitempty"`
+	TotalsFiltered map[string]int64 `json:"totalsFiltered,omitempty"`
+	Rule
+}
+
+type Alert struct {
+	// required: true
+	Labels map[string]string `json:"labels"`
+	// required: true
+	Annotations map[string]string `json:"annotations"`
+	// required: true
+	State    string     `json:"state"`
+	ActiveAt *time.Time `json:"activeAt"`
+	// required: true
+	Value string `json:"value"`
+}
+
+type Rule struct {
+	// required: true
+	Name string `json:"name"`
+	// required: true
+	Query  string            `json:"query"`
+	Labels map[string]string `json:"labels,omitempty"`
+	// required: true
+	Health    string `json:"health"`
+	LastError string `json:"lastError,omitempty"`
+	// required: true
+	Type           string    `json:"type"`
+	LastEvaluation time.Time `json:"lastEvaluation"`
+	EvaluationTime float64   `json:"evaluationTime"`
+}
+
+func NewAlerting() *Alerting {
+	return &Alerting{}
+}
 
 func main() {
-	// 创建 Client
-	client := lark.NewClient(clientID, clientSecret)
-	// 创建请求对象
-	file, err := os.Open("aa.pdf")
+	url := "https://192.168.2.155:8443/api/v1/namespaces/cattle-global-monitoring/services/http:access-grafana:80/proxy/api/prometheus/grafana/api/v1/rules" // 示例 URL
+
+	// 创建一个新的 GET 请求
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Error creating request:", err)
 		return
 	}
-	defer file.Close()
 
-	createFileReq := larkim.NewCreateFileReqBuilder().
-		Body(larkim.NewCreateFileReqBodyBuilder().
-			FileType(`pdf`).
-			FileName(`inspection.pdf`).
-			File(file).
-			Build()).
-		Build()
+	// 设置请求头
+	req.Header.Set("User-Agent", "My-Go-App")
+	req.Header.Set("Authorization", "Bearer token-8ljpf:j272rljrb4dvf69j2twt25jk8cg95756blbg5s9pwcm2gr4vphs599")
 
-	// 发起请求
-	createFileResp, err := client.Im.File.Create(context.Background(), createFileReq)
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
 
-	// 处理错误
+	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Error sending request:", err)
 		return
 	}
+	defer resp.Body.Close()
 
-	// 服务端错误处理
-	if !createFileResp.Success() {
-		fmt.Println(createFileResp.Code, createFileResp.Msg, createFileResp.RequestId())
-		return
-	}
-
-	// 业务处理
-	fmt.Println(larkcore.Prettify(createFileResp))
-
-	// 创建请求对象
-	listChatReq := larkim.NewListChatReqBuilder().
-		SortType(`ByCreateTimeAsc`).
-		PageSize(20).
-		Build()
-
-	// 发起请求
-	listChatResp, err := client.Im.Chat.List(context.Background(), listChatReq)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
-	// 服务端错误处理
-	if !listChatResp.Success() {
-		fmt.Println(listChatResp.Code, listChatResp.Msg, listChatResp.RequestId())
+	alerting := NewAlerting()
+	err = json.Unmarshal(body, alerting)
+	if err != nil {
+		fmt.Println("Error sending request:", err)
 		return
 	}
 
-	// 业务处理
-	fmt.Println(larkcore.Prettify(listChatResp))
-
-	for _, i := range listChatResp.Data.Items {
-
-		createMessageReq := larkim.NewCreateMessageReqBuilder().
-			ReceiveIdType(`chat_id`).
-			Body(larkim.NewCreateMessageReqBodyBuilder().
-				ReceiveId(*i.ChatId).
-				MsgType(`file`).
-				Content("{\"file_key\":\"" + *createFileResp.Data.FileKey + "\"}").
-				Build()).
-			Build()
-
-		// 发起请求
-		createMessageResp, err := client.Im.Message.Create(context.Background(), createMessageReq)
-
-		// 处理错误
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		// 服务端错误处理
-		if !createMessageResp.Success() {
-			fmt.Println(createMessageResp.Code, createMessageResp.Msg, createMessageResp.RequestId())
-			return
-		}
-
-		// 业务处理
-		fmt.Println(larkcore.Prettify(createMessageResp))
+	da, err := json.Marshal(alerting)
+	if err != nil {
+		fmt.Println("Error sending request:", err)
+		return
 	}
+
+	fmt.Println(string(da))
+	// 输出响应内容
+	fmt.Println("==============")
+	fmt.Println("=============")
+	fmt.Println(string(body))
 }

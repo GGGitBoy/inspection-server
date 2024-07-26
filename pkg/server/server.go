@@ -2,6 +2,7 @@ package server
 
 import (
 	"inspection-server/pkg/api"
+	"inspection-server/pkg/core"
 	"net/http"
 	"net/http/pprof"
 
@@ -41,6 +42,8 @@ func Start() http.Handler {
 
 	router.Methods(http.MethodGet).Path("/v1/clusters/list").Handler(api.GetClusters())
 	router.Methods(http.MethodGet).Path("/v1/clusters/{id}/resource/list").Handler(api.GetResource())
+
+	router.Methods(http.MethodGet).Path("/v1/grafana").Handler(core.GetGrafana())
 
 	return router
 }

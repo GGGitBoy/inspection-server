@@ -133,7 +133,8 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 				}
 
 				nodeData := &apis.Node{
-					Name: pod.Spec.NodeName,
+					Name:   pod.Spec.NodeName,
+					HostIP: pod.Status.HostIP,
 					Resource: &apis.Resource{
 						LimitsCPU:         limitsCPU,
 						LimitsMemory:      limitsMemory,

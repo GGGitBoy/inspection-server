@@ -34,6 +34,12 @@ func Inspection(plan *apis.Plan) error {
 
 	report := apis.NewReport()
 	kubernetes := apis.NewKubernetes()
+
+	allGrafanaInspections, err := GetAllGrafanaInspections()
+	if err != nil {
+		return err
+	}
+
 	for clusterID, client := range clients {
 		for _, k := range template.KubernetesConfig {
 			if k.ClusterID == clusterID && k.Enable {
@@ -89,6 +95,18 @@ func Inspection(plan *apis.Plan) error {
 
 				clusterNode.Nodes = NodeNodeArray
 				clusterResource.Workloads = ResourceWorkloadArray
+
+				if len(allGrafanaInspections[k.ClusterName].ClusterCoreInspection) > 0 {
+					coreInspections = append(coreInspections, allGrafanaInspections[k.ClusterName].ClusterCoreInspection...)
+				}
+
+				if len(allGrafanaInspections[k.ClusterName].ClusterNodeInspection) > 0 {
+					nodeInspections = append(nodeInspections, allGrafanaInspections[k.ClusterName].ClusterNodeInspection...)
+				}
+
+				if len(allGrafanaInspections[k.ClusterName].ClusterResourceInspection) > 0 {
+					resourceInspections = append(resourceInspections, allGrafanaInspections[k.ClusterName].ClusterResourceInspection...)
+				}
 
 				clusterCore.Inspections = coreInspections
 				clusterNode.Inspections = nodeInspections
