@@ -5,9 +5,18 @@ import (
 )
 
 var (
-	ServerURL       = os.Getenv("SERVER_URL")
-	BearerToken     = os.Getenv("BEARER_TOKEN")
-	MySQL           = os.Getenv("MY_SQL")
+	ServerURL   = os.Getenv("SERVER_URL")
+	BearerToken = os.Getenv("BEARER_TOKEN")
+
+	MySQL         = os.Getenv("MY_SQL")
+	MySQLUser     = os.Getenv("MY_SQL_USER")
+	MySQLPassword = os.Getenv("MY_SQL_PASSWORD")
+	MySQLHost     = os.Getenv("MY_SQL_HOST")
+	MySQLPort     = os.Getenv("MY_SQL_PORT")
+	MySQLDB       = os.Getenv("MY_SQL_DB")
+
+	SQLiteName = "sqlite.db"
+
 	PrintWaitSecond = os.Getenv("PRINT_WAIT_SECOND")
 
 	LocalCluster        = "local"

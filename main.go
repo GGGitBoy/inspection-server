@@ -48,9 +48,39 @@ func main() {
 			Usage:  "Set log level to debug.",
 		},
 		cli.BoolFlag{
-			Name:   "sql",
+			Name:   "mysql",
 			EnvVar: "MY_SQL",
 			Usage:  "Set mysql as database.",
+		},
+		cli.StringFlag{
+			Name:   "mysqlUser",
+			EnvVar: "MY_SQL_USER",
+			Value:  "root",
+			Usage:  "Set mysql user.",
+		},
+		cli.StringFlag{
+			Name:   "mysqlPassword",
+			EnvVar: "MY_SQL_PASSWORD",
+			Value:  "123456",
+			Usage:  "Set mysql password.",
+		},
+		cli.StringFlag{
+			Name:   "mysqlHost",
+			EnvVar: "MY_SQL_HOST",
+			Value:  "localhost",
+			Usage:  "Set mysql host.",
+		},
+		cli.IntFlag{
+			Name:   "mysqlPort",
+			EnvVar: "MY_SQL_PORT",
+			Value:  3306,
+			Usage:  "Set mysql port.",
+		},
+		cli.StringFlag{
+			Name:   "mysqlDB",
+			EnvVar: "MY_SQL_DB",
+			Value:  "mysql",
+			Usage:  "Set mysql database.",
 		},
 	}
 

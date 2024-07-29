@@ -47,14 +47,6 @@ var (
             app_secret TEXT
         );`,
 	}
-
-	sqliteName = "sqlite.db"
-
-	mysqlUser     = "root"
-	mysqlPassword = "rancher123456"
-	mysqlDB       = "mydatabase"
-	mysqlHost     = "15.164.221.150"
-	mysqlPort     = 3306
 )
 
 func Register() error {
@@ -63,13 +55,6 @@ func Register() error {
 		return err
 	}
 	defer DB.Close()
-
-	//var sqlTables []string
-	//if common.MySQL == "true" {
-	//	sqlTables = mysqlTables
-	//} else {
-	//	sqlTables = sqliteTables
-	//}
 
 	for _, table := range sqlTables {
 		_, err = DB.Exec(table)
@@ -85,12 +70,12 @@ func GetDB() (*sql.DB, error) {
 	var DB *sql.DB
 	var err error
 	if common.MySQL == "true" {
-		DB, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlPort, mysqlDB))
+		DB, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", common.MySQLUser, common.MySQLPassword, common.MySQLHost, common.MySQLPort, common.MySQLDB))
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		DB, err = sql.Open("sqlite3", sqliteName)
+		DB, err = sql.Open("sqlite3", common.SQLiteName)
 		if err != nil {
 			return nil, err
 		}
