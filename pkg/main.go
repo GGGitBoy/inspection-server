@@ -1,165 +1,78 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
+	"database/sql"
 	"fmt"
-	"io"
 	"log"
-	"mime/multipart"
-	"net/http"
-	"os"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 const (
-	authURL       = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
-	uploadFileURL = "https://open.feishu.cn/open-apis/im/v1/files"
-	clientID      = "cli_a617001e7fb0100e"             // 替换为您的 Client ID
-	clientSecret  = "ZXWHYjckol1qpCfbiknVxedHxz2y6XMM" // 替换为您的 Client Secret
-	filePath      = "aa.pdf"                           // 替换为本地文件路径
-	sendMsgURL    = "https://open.feishu.cn/open-apis/im/v1/messages"
-	chatID        = "oc_4993d28f9c6e6b057289714be2a64d29" // 替换为群组 ID
+	mysqlUser     = "your_mysql_username"
+	mysqlPassword = "your_mysql_password"
+	mysqlDB       = "your_database_name"
+	mysqlHost     = "localhost"
+	mysqlPort     = 3306
 )
 
-// 获取访问令牌
-func getAccessToken() (string, error) {
-	data := map[string]string{
-		"app_id":     clientID,
-		"app_secret": clientSecret,
-	}
-	reqBody, err := json.Marshal(data)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal request body: %w", err)
-	}
-
-	resp, err := http.Post(authURL, "application/json", bytes.NewBuffer(reqBody))
-	if err != nil {
-		return "", fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to get access token: %s", resp.Status)
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	accessToken := result["tenant_access_token"].(string)
-	return accessToken, nil
-}
-
-// 上传文件到飞书
-func uploadFile(accessToken, filePath string) (string, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	writer.WriteField("file_name", "inspection.pdf")
-	writer.WriteField("file_type", "pdf")
-	part, err := writer.CreateFormFile("file", "inspection.pdf")
-	if err != nil {
-		return "", fmt.Errorf("failed to create form file: %w", err)
-	}
-
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return "", fmt.Errorf("failed to copy file: %w", err)
-	}
-	writer.Close()
-
-	req, err := http.NewRequest("POST", uploadFileURL, body)
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	fmt.Println(result)
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to upload file: %s", resp.Status)
-	}
-
-	data := result["data"].(map[string]interface{})
-	fileID := data["file_key"].(string)
-
-	return fileID, nil
-}
-
 func main() {
-	// 获取访问令牌
-	accessToken, err := getAccessToken()
+	// 构建 MySQL 连接字符串
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlPort, mysqlDB)
+
+	// 连接到 MySQL 数据库
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		log.Fatalf("Failed to get access token: %v", err)
+		log.Fatalf("Failed to connect to MySQL: %v", err)
+	}
+	defer db.Close()
+
+	// 创建表格的 SQL 语句
+	createTableQueries := []string{
+		`CREATE TABLE IF NOT EXISTS report (
+            id VARCHAR(255) NOT NULL PRIMARY KEY,
+            name TEXT,
+            rating INT,
+            report_time TEXT,
+            data TEXT
+        );`,
+		`CREATE TABLE IF NOT EXISTS plan (
+            id VARCHAR(255) NOT NULL PRIMARY KEY,
+            name TEXT,
+            timer TEXT,
+            cron TEXT,
+            mode INT,
+            state TEXT,
+            template_id TEXT,
+            notify_id TEXT
+        );`,
+		`CREATE TABLE IF NOT EXISTS record (
+            id VARCHAR(255) NOT NULL PRIMARY KEY,
+            name TEXT,
+            start_time TEXT,
+            end_time TEXT,
+            mode INT,
+            report_id TEXT
+        );`,
+		`CREATE TABLE IF NOT EXISTS template (
+            id VARCHAR(255) NOT NULL PRIMARY KEY,
+            name TEXT,
+            data TEXT
+        );`,
+		`CREATE TABLE IF NOT EXISTS notify (
+            id VARCHAR(255) NOT NULL PRIMARY KEY,
+            name TEXT,
+            app_id TEXT,
+            app_secret TEXT
+        );`,
 	}
 
-	// 上传文件并获取 file_id
-	fileID, err := uploadFile(accessToken, filePath)
-	if err != nil {
-		log.Fatalf("Failed to upload file: %v", err)
+	// 执行每个创建表格的 SQL 语句
+	for _, query := range createTableQueries {
+		_, err := db.Exec(query)
+		if err != nil {
+			log.Fatalf("Failed to create table: %v", err)
+		}
+		fmt.Println("Table created successfully")
 	}
-
-	log.Println(fileID)
-
-	// 发送文件消息到群组
-	err = sendFileMessage(accessToken, fileID)
-	if err != nil {
-		log.Fatalf("Failed to sendFileMessage: %v", err)
-	}
-
-	log.Println("File sent successfully to the group!")
-}
-
-func sendFileMessage(accessToken, fileID string) error {
-
-	content := "{\"file_key\":\"" + fileID + "\"}"
-	message := map[string]string{
-		"receive_id": chatID,
-		"msg_type":   "file",
-		"content":    content,
-	}
-	reqBody, err := json.Marshal(message)
-	if err != nil {
-		return fmt.Errorf("failed to marshal request body: %w", err)
-	}
-
-	req, err := http.NewRequest("POST", "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id", bytes.NewBuffer(reqBody))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		responseBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("failed to send message: %s, response: %s", resp.Status, responseBody)
-	}
-
-	return nil
 }

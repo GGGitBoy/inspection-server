@@ -47,6 +47,11 @@ func main() {
 			EnvVar: "LOG_LEVEL",
 			Usage:  "Set log level to debug.",
 		},
+		cli.BoolFlag{
+			Name:   "sql",
+			EnvVar: "MY_SQL",
+			Usage:  "Set mysql as database.",
+		},
 	}
 
 	app.Action = func(ctx *cli.Context) error {

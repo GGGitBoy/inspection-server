@@ -8,7 +8,7 @@ import (
 )
 
 func GetNotify(notifyID string) (*apis.Notify, error) {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func GetNotify(notifyID string) (*apis.Notify, error) {
 }
 
 func ListNotify() ([]*apis.Notify, error) {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return nil, err
 	}
@@ -72,9 +72,9 @@ func ListNotify() ([]*apis.Notify, error) {
 }
 
 func CreateNotify(notify *apis.Notify) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer DB.Close()
 
@@ -97,7 +97,7 @@ func CreateNotify(notify *apis.Notify) error {
 }
 
 func UpdateNotify(notify *apis.Notify) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func UpdateNotify(notify *apis.Notify) error {
 }
 
 func DeleteNotify(notifyID string) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return err
 	}

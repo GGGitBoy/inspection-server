@@ -1,6 +1,7 @@
 package print
 
 import (
+	"fmt"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/signintech/gopdf"
@@ -35,15 +36,50 @@ func FullScreenshot(print *Print) error {
 	browser := rod.New().ControlURL(u).MustConnect()
 	defer browser.MustClose()
 
+	fmt.Println(time.Now().Format(time.DateTime))
 	page := browser.MustPage(print.URL)
 	page.MustWaitLoad()
 
+	//page.WaitElementsMoreThan()
+
+	//`(s, n) => document.querySelectorAll(s).length >= n`
+
 	time.Sleep(time.Duration(waitSecond) * time.Second)
-	metrics := page.MustEval(`() => ({
-		width: document.body.scrollWidth,
-		height: document.body.scrollHeight,
-	})`)
-	page.MustSetViewport(metrics.Get("width").Int(), metrics.Get("height").Int(), 1, false)
+
+	// 等待条件并获取 allElements.length
+	aaa := page.MustEval(`() => {
+		const iframes = document.querySelectorAll('iframe');
+		let allElements = [];
+		iframes.forEach(iframe => {
+			try {
+				const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+				if (iframeDocument) {
+					const elements = iframeDocument.querySelectorAll(".css-kvzgb9-panel-content");
+					allElements = allElements.concat(Array.from(elements));
+				}
+			} catch (error) {
+				console.warn("Could not access iframe content due to cross-origin restrictions:", error);
+			}
+		});
+		return { length: allElements.length };
+	}`)
+
+	// 打印 allElements.length
+	fmt.Println(aaa.Get("length").Int())
+
+	//page.MustEval(`() => {
+	//	var totalWidth = 0;
+	//	var distance = 100;
+	//	var timer = setInterval(() => {
+	//		var scrollWidth = document.body.scrollWidth;
+	//		window.scrollBy(distance, 0);
+	//		totalWidth += distance;
+	//		if(totalWidth >= scrollWidth){
+	//			clearInterval(timer);
+	//		}
+	//	}, 100);
+	//}`)
+	fmt.Println(time.Now().Format(time.DateTime))
 	page.MustEval(`() => {
 		var totalHeight = 0;
 		var distance = 100;
@@ -54,14 +90,82 @@ func FullScreenshot(print *Print) error {
 			if(totalHeight >= scrollHeight){
 				clearInterval(timer);
 			}
-		}, 100);
+		}, 1000);
 	}`)
-	time.Sleep(time.Duration(waitSecond) * time.Second)
+
+	err := page.Wait(rod.Eval(`() => document.body.scrollHeight <= (window.scrollY + window.innerHeight)`))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	page.MustWaitRequestIdle()
+	err = page.WaitElementsMoreThan(".iframe", 2)
+	//err = page.Wait(rod.Eval(`() => ({
+	//	return document.querySelectorAll(".iframe").length >= 3;
+	//})`))
+	if err != nil {
+		log.Fatalf("Failed to iframe: %v", err)
+	}
+	//
+	//err = page.Wait(rod.Eval(`() => {
+	//	const iframes = document.querySelectorAll(".iframe");
+	//	let allElements = [];
+	//	iframes.forEach(iframe => {
+	//		try {
+	//			const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+	//			if (iframeDocument) {
+	//				const elements = iframeDocument.querySelectorAll(".css-kvzgb9-panel-content");
+	//				allElements = allElements.concat(Array.from(elements));
+	//			}
+	//		} catch (error) {
+	//			console.warn("Could not access iframe content due to cross-origin restrictions:", error);
+	//			throw new Error("Accessing iframe content failed");
+	//		}
+	//	});
+	//	return allElements.length >= 44;
+	//}`))
+	//if err != nil {
+	//	log.Fatalf("Failed to evaluate JavaScript: %v", err)
+	//}
+
+	fmt.Println(time.Now().Format(time.DateTime))
+	//time.Sleep(20 * time.Second)
+
+	bbb := page.MustEval(`() => {
+		const iframes = document.querySelectorAll('iframe');
+		let allElements = [];
+		iframes.forEach(iframe => {
+			try {
+				const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+				if (iframeDocument) {
+					const elements = iframeDocument.querySelectorAll(".css-kvzgb9-panel-content");
+					allElements = allElements.concat(Array.from(elements));
+				}
+			} catch (error) {
+				console.warn("Could not access iframe content due to cross-origin restrictions:", error);
+			}
+		});
+		return { length: allElements.length };
+	}`)
+	fmt.Println(time.Now().Format(time.DateTime))
+	// 打印 allElements.length
+	fmt.Println(bbb.Get("length").Int())
+
+	metrics := page.MustEval(`() => ({
+		width: document.body.scrollWidth,
+		height: document.body.scrollHeight,
+	})`)
+
+	fmt.Println(metrics.Get("width").Int())
+	fmt.Println(metrics.Get("height").Int())
+	fmt.Println("=========")
+	page.MustSetViewport(metrics.Get("width").Int(), metrics.Get("height").Int(), 1, false)
 
 	screenshot, err := page.Screenshot(false, nil)
 	if err != nil {
 		log.Fatalf("Failed to capture screenshot: %v", err)
 	}
+	fmt.Println(time.Now().Format(time.DateTime))
 
 	err = common.WriteFile(common.PrintShotPath, screenshot)
 	if err != nil {

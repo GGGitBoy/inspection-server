@@ -9,7 +9,7 @@ import (
 )
 
 func GetTemplate(templateID string) (*apis.Template, error) {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func GetTemplate(templateID string) (*apis.Template, error) {
 }
 
 func ListTemplate() ([]*apis.Template, error) {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return nil, err
 	}
@@ -85,9 +85,9 @@ func ListTemplate() ([]*apis.Template, error) {
 }
 
 func CreateTemplate(template *apis.Template) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer DB.Close()
 
@@ -115,7 +115,7 @@ func CreateTemplate(template *apis.Template) error {
 }
 
 func UpdateTemplate(template *apis.Template) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func UpdateTemplate(template *apis.Template) error {
 }
 
 func DeleteTemplate(templateID string) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return err
 	}

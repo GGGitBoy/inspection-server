@@ -8,7 +8,7 @@ import (
 )
 
 func GetRecord(recordID string) (*apis.Record, error) {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func GetRecord(recordID string) (*apis.Record, error) {
 }
 
 func ListRecord() ([]*apis.Record, error) {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return nil, err
 	}
@@ -77,9 +77,9 @@ func ListRecord() ([]*apis.Record, error) {
 }
 
 func CreateRecord(record *apis.Record) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer DB.Close()
 
@@ -103,7 +103,7 @@ func CreateRecord(record *apis.Record) error {
 }
 
 func DeleteRecord(recordID string) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return err
 	}

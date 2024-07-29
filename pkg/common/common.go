@@ -7,13 +7,14 @@ import (
 var (
 	ServerURL       = os.Getenv("SERVER_URL")
 	BearerToken     = os.Getenv("BEARER_TOKEN")
+	MySQL           = os.Getenv("MY_SQL")
 	PrintWaitSecond = os.Getenv("PRINT_WAIT_SECOND")
 
 	LocalCluster        = "local"
 	InspectionNamespace = "cattle-inspection-system"
 
-	//WorkDir = "/Users/chenjiandao/jiandao/inspection-server/opt/"
-	WorkDir = "/opt/"
+	WorkDir = "/Users/chenjiandao/jiandao/inspection-server/opt/"
+	//WorkDir = "/opt/"
 
 	ConfigFilePath = WorkDir + "config/config.yml"
 

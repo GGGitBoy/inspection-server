@@ -8,7 +8,7 @@ import (
 )
 
 func GetPlan(planID string) (*apis.Plan, error) {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func GetPlan(planID string) (*apis.Plan, error) {
 }
 
 func ListPlan() ([]*apis.Plan, error) {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return nil, err
 	}
@@ -81,9 +81,9 @@ func ListPlan() ([]*apis.Plan, error) {
 }
 
 func CreatePlan(plan *apis.Plan) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer DB.Close()
 
@@ -107,7 +107,7 @@ func CreatePlan(plan *apis.Plan) error {
 }
 
 func UpdatePlan(plan *apis.Plan) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func UpdatePlan(plan *apis.Plan) error {
 }
 
 func DeletePlan(planID string) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return err
 	}

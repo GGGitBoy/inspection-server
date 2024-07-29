@@ -9,9 +9,9 @@ import (
 )
 
 func CreateReport(report *apis.Report) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer DB.Close()
 
@@ -39,7 +39,7 @@ func CreateReport(report *apis.Report) error {
 }
 
 func GetReport(reportID string) (*apis.Report, error) {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
 		return nil, err
 	}
@@ -79,9 +79,9 @@ func GetReport(reportID string) (*apis.Report, error) {
 }
 
 func DeleteReport(reportID string) error {
-	DB, err := sql.Open(sqliteDriver, sqliteName)
+	DB, err := GetDB()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer DB.Close()
 
