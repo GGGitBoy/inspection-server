@@ -18,5 +18,7 @@ COPY bin/inspection-server /inspection-server
 
 COPY test.pdf /opt/test.pdf
 
+COPY pkg/agent/yaml /opt/yaml
+
 # 指定容器启动时运行的命令
 CMD ["/inspection-server"]
