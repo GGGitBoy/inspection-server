@@ -43,6 +43,9 @@ func Start() http.Handler {
 	router.Methods(http.MethodGet).Path("/v1/clusters/list").Handler(api.GetClusters())
 	router.Methods(http.MethodGet).Path("/v1/clusters/{id}/resource/list").Handler(api.GetResource())
 
+	router.Methods(http.MethodGet).Path("/v1/agent/list").Handler(api.ListAgent())
+	router.Methods(http.MethodDelete).Path("/v1/agent/delete/{id}").Handler(api.DeleteAgent())
+
 	router.Methods(http.MethodGet).Path("/v1/grafana").Handler(core.GetGrafana())
 
 	return router

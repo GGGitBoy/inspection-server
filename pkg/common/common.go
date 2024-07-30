@@ -35,4 +35,6 @@ var (
 
 	SendTestPDFPath = WorkDir + SendTestPDFName
 	SendTestPDFName = "test.pdf"
+
+	AgentYamlPath = WorkDir + "yaml/"
 )

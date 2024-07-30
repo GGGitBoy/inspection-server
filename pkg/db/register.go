@@ -70,7 +70,7 @@ func GetDB() (*sql.DB, error) {
 	var DB *sql.DB
 	var err error
 	if common.MySQL == "true" {
-		DB, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", common.MySQLUser, common.MySQLPassword, common.MySQLHost, common.MySQLPort, common.MySQLDB))
+		DB, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", common.MySQLUser, common.MySQLPassword, common.MySQLHost, common.MySQLPort, common.MySQLDB))
 		if err != nil {
 			return nil, err
 		}

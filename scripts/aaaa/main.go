@@ -1,140 +1,83 @@
 package main
 
 import (
-	"crypto/tls"
-	"encoding/json"
+	"bytes"
+	"context"
 	"fmt"
-	"io"
-	"net/http"
-	"time"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/client-go/applyconfigurations/core/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"log"
+	"os"
+	"sigs.k8s.io/yaml"
+	"text/template"
 )
 
-type Alerting struct {
-	Data *Data `json:"data"`
+func aa() {
+	// 加载 kubeconfig 文件
+	kubeconfig := "/Users/chenjiandao/jiandao/inspection-server/opt/kubeconfig/local"
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		log.Fatalf("Error loading kubeconfig: %v", err)
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("Error loading kubeconfig: %v", err)
+	}
+
+	// 读取 YAML 文件
+	yamlFile, err := os.ReadFile("/Users/chenjiandao/jiandao/inspection-server/scripts/aaaa/namespace.yaml")
+	if err != nil {
+		log.Fatalf("Error reading YAML file: %v", err)
+	}
+
+	// 将 YAML 文件解码为 ConfigMapApplyConfiguration
+	var namespace *v1.NamespaceApplyConfiguration
+	err = yaml.Unmarshal(yamlFile, &namespace)
+	if err != nil {
+		log.Fatalf("Error unmarshaling YAML file: %v", err)
+	}
+
+	//// 设置 ConfigMapApplyConfiguration 的必要字段
+	//configMapApplyConfig.WithKind("ConfigMap").WithAPIVersion("v1")
+
+	_, err = clientset.CoreV1().Namespaces().Apply(context.TODO(), namespace, metav1.ApplyOptions{Force: true, FieldManager: "application/apply-patch"})
+	if err != nil {
+		log.Fatalf("Error applying ServiceAccount: %v", err)
+	}
+
+	fmt.Printf("ConfigMap applied successfully: %v\n", namespace)
 }
 
-type Data struct {
-	RuleGroups []RuleGroup      `json:"groups"`
-	Totals     map[string]int64 `json:"totals,omitempty"`
-}
-
-// swagger:model
-type RuleGroup struct {
-	// required: true
-	Name string `json:"name"`
-	// required: true
-	File string `json:"file"`
-	// In order to preserve rule ordering, while exposing type (alerting or recording)
-	// specific properties, both alerting and recording rules are exposed in the
-	// same array.
-	// required: true
-	Rules  []AlertingRule   `json:"rules"`
-	Totals map[string]int64 `json:"totals"`
-	// required: true
-	Interval       float64   `json:"interval"`
-	LastEvaluation time.Time `json:"lastEvaluation"`
-	EvaluationTime float64   `json:"evaluationTime"`
-}
-
-type AlertingRule struct {
-	// State can be "pending", "firing", "inactive".
-	// required: true
-	State string `json:"state,omitempty"`
-	// required: true
-	Name string `json:"name,omitempty"`
-	// required: true
-	Query    string  `json:"query,omitempty"`
-	Duration float64 `json:"duration,omitempty"`
-	// required: true
-	Annotations map[string]string `json:"annotations,omitempty"`
-
-	// required: true
-	ActiveAt       *time.Time       `json:"activeAt,omitempty"`
-	Alerts         []Alert          `json:"alerts,omitempty"`
-	Totals         map[string]int64 `json:"totals,omitempty"`
-	TotalsFiltered map[string]int64 `json:"totalsFiltered,omitempty"`
-	Rule
-}
-
-type Alert struct {
-	// required: true
-	Labels map[string]string `json:"labels"`
-	// required: true
-	Annotations map[string]string `json:"annotations"`
-	// required: true
-	State    string     `json:"state"`
-	ActiveAt *time.Time `json:"activeAt"`
-	// required: true
-	Value string `json:"value"`
-}
-
-type Rule struct {
-	// required: true
-	Name string `json:"name"`
-	// required: true
-	Query  string            `json:"query"`
-	Labels map[string]string `json:"labels,omitempty"`
-	// required: true
-	Health    string `json:"health"`
-	LastError string `json:"lastError,omitempty"`
-	// required: true
-	Type           string    `json:"type"`
-	LastEvaluation time.Time `json:"lastEvaluation"`
-	EvaluationTime float64   `json:"evaluationTime"`
-}
-
-func NewAlerting() *Alerting {
-	return &Alerting{}
+// Values represents the values to be passed to the template
+type Values struct {
+	SetNamespace bool
 }
 
 func main() {
-	url := "https://192.168.2.155:8443/api/v1/namespaces/cattle-global-monitoring/services/http:access-grafana:80/proxy/api/prometheus/grafana/api/v1/rules" // 示例 URL
-
-	// 创建一个新的 GET 请求
-	req, err := http.NewRequest("GET", url, nil)
+	// 读取模板文件
+	templateFile := "/Users/chenjiandao/jiandao/inspection-server/scripts/aaaa/serviceaccount.yaml"
+	tmpl, err := template.ParseFiles(templateFile)
 	if err != nil {
-		fmt.Println("Error creating request:", err)
-		return
+		log.Fatalf("Error parsing template file: %v", err)
 	}
 
-	// 设置请求头
-	req.Header.Set("User-Agent", "My-Go-App")
-	req.Header.Set("Authorization", "Bearer token-8ljpf:j272rljrb4dvf69j2twt25jk8cg95756blbg5s9pwcm2gr4vphs599")
-
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	// 设置模板变量
+	values := Values{
+		SetNamespace: true, // or false based on your requirement
 	}
-	client := &http.Client{Transport: tr}
 
-	resp, err := client.Do(req)
+	// 渲染模板
+	var rendered bytes.Buffer
+	err = tmpl.Execute(&rendered, map[string]interface{}{
+		"Values": values,
+	})
 	if err != nil {
-		fmt.Println("Error sending request:", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println("Error sending request:", err)
-		return
+		log.Fatalf("Error executing template: %v", err)
 	}
 
-	alerting := NewAlerting()
-	err = json.Unmarshal(body, alerting)
-	if err != nil {
-		fmt.Println("Error sending request:", err)
-		return
-	}
-
-	da, err := json.Marshal(alerting)
-	if err != nil {
-		fmt.Println("Error sending request:", err)
-		return
-	}
-
-	fmt.Println(string(da))
-	// 输出响应内容
-	fmt.Println("==============")
-	fmt.Println("=============")
-	fmt.Println(string(body))
+	// 输出渲染后的内容
+	fmt.Println(rendered.String())
 }

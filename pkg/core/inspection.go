@@ -4,7 +4,9 @@ import (
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
 	"inspection-server/pkg/db"
+	pdfPrint "inspection-server/pkg/print"
 	"inspection-server/pkg/send"
+	"log"
 	"time"
 )
 
@@ -150,6 +152,13 @@ func Inspection(plan *apis.Plan) error {
 		notify, err := db.GetNotify(plan.NotifyID)
 		if err != nil {
 			return err
+		}
+
+		p := pdfPrint.NewPrint()
+		p.URL = "http://127.0.0.1/#/inspection-record/result-pdf-view/" + report.ID
+		err = pdfPrint.FullScreenshot(p)
+		if err != nil {
+			log.Fatal(err)
 		}
 
 		err = send.Notify(notify.AppID, notify.AppSecret, common.PrintPDFName, common.PrintPDFPath)
