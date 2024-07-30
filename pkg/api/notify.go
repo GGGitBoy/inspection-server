@@ -22,6 +22,7 @@ func GetNotify() http.Handler {
 			log.Fatal(err)
 		}
 
+		notify.AppSecret = ""
 		jsonData, err := json.MarshalIndent(notify, "", "\t")
 		if err != nil {
 			log.Fatal(err)

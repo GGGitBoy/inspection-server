@@ -27,9 +27,10 @@ func GetNotify(notifyID string) (*apis.Notify, error) {
 		}
 	} else {
 		notify = &apis.Notify{
-			ID:    id,
-			Name:  name,
-			AppID: appID,
+			ID:        id,
+			Name:      name,
+			AppID:     appID,
+			AppSecret: appSecret,
 		}
 	}
 
