@@ -22,8 +22,8 @@ var (
 	LocalCluster        = "local"
 	InspectionNamespace = "cattle-inspection-system"
 
-	WorkDir = "/Users/chenjiandao/jiandao/inspection-server/opt/"
-	//WorkDir = "/opt/"
+	//WorkDir = "/Users/chenjiandao/jiandao/inspection-server/opt/"
+	WorkDir = "/opt/"
 
 	ConfigFilePath = WorkDir + "config/config.yml"
 
