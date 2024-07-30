@@ -3,9 +3,9 @@ FROM alpine:latest
 # 设置时区并安装必要的软件包
 RUN apk update \
     && apk add --no-cache \
-        tzdata \        # 安装时区数据
-        chromium \      # 安装 Chromium 浏览器
-        font-noto-cjk   # 安装 Noto CJK 字体
+        tzdata \
+        chromium \
+        font-noto-cjk
 
 # 设置时区为 Asia/Shanghai
 ENV TZ=Asia/Shanghai
