@@ -166,7 +166,7 @@ func ApplyDaemonSet(clientset *kubernetes.Clientset) error {
 	var rendered bytes.Buffer
 	err = tmpl.Execute(&rendered, map[string]interface{}{
 		"Values": Values{
-			SetDocker: false, // or false based on your requirement
+			SetDocker: true, // or false based on your requirement
 		},
 	})
 	if err != nil {
