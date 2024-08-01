@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
 	"inspection-server/pkg/db"
@@ -49,6 +50,7 @@ func Inspection(plan *apis.Plan) error {
 		return err
 	}
 
+	var sendMessageDetail []string
 	for clusterID, client := range clients {
 		for _, k := range template.KubernetesConfig {
 			if k.ClusterID == clusterID && k.Enable {
@@ -123,6 +125,22 @@ func Inspection(plan *apis.Plan) error {
 				clusterNode.Inspections = nodeInspections
 				clusterResource.Inspections = resourceInspections
 
+				for _, c := range coreInspections {
+					if c.Level <= 2 {
+						sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 警告: %s", k.ClusterName, c.Title))
+					}
+				}
+				for _, n := range nodeInspections {
+					if n.Level <= 2 {
+						sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 警告: %s", k.ClusterName, n.Title))
+					}
+				}
+				for _, r := range resourceInspections {
+					if r.Level <= 2 {
+						sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 警告: %s", k.ClusterName, r.Title))
+					}
+				}
+
 				kubernetes = append(kubernetes, &apis.Kubernetes{
 					ClusterID:       k.ClusterID,
 					ClusterName:     k.ClusterName,
@@ -138,7 +156,7 @@ func Inspection(plan *apis.Plan) error {
 		ID: common.GetUUID(),
 		Global: &apis.Global{
 			Name:       record.Name,
-			Rating:     0,
+			Rating:     "优",
 			ReportTime: time.Now().Format(time.DateTime),
 		},
 		Kubernetes: kubernetes,
@@ -146,6 +164,11 @@ func Inspection(plan *apis.Plan) error {
 	err = db.CreateReport(report)
 	if err != nil {
 		return err
+	}
+
+	sendMessage := "该巡检报告的健康等级为: " + report.Global.Rating + "\n"
+	for _, s := range sendMessageDetail {
+		sendMessage = sendMessage + s + "\n"
 	}
 
 	if plan.NotifyID != "" {
@@ -162,7 +185,7 @@ func Inspection(plan *apis.Plan) error {
 			return err
 		}
 
-		err = send.Notify(notify.AppID, notify.AppSecret, "report-"+p.ReportTime+".pdf", common.PrintPDFPath+"report-"+p.ReportTime+".pdf", "该测试报告的健康等级为: 优")
+		err = send.Notify(notify.AppID, notify.AppSecret, common.GetReportFileName(p.ReportTime), common.PrintPDFPath+common.GetReportFileName(p.ReportTime), "该测试报告的健康等级为: 优")
 		if err != nil {
 			return err
 		}
@@ -171,6 +194,7 @@ func Inspection(plan *apis.Plan) error {
 	record.EndTime = time.Now().Format(time.DateTime)
 	record.Rating = report.Global.Rating
 	record.ReportID = report.ID
+	record.State = "巡检完成"
 	err = db.UpdateRecord(record)
 	if err != nil {
 		return err

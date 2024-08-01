@@ -51,7 +51,7 @@ func PrintReport() http.Handler {
 			log.Fatal(err)
 		}
 
-		file, err := os.Open(common.PrintPDFPath + "report-" + p.ReportTime + ".pdf")
+		file, err := os.Open(common.PrintPDFPath + common.GetReportFileName(p.ReportTime))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -63,7 +63,7 @@ func PrintReport() http.Handler {
 		}
 
 		// 设置响应头
-		rw.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(common.PrintPDFPath+"report-"+p.ReportTime+".pdf"))
+		rw.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(common.GetReportFileName(p.ReportTime)))
 		rw.Header().Set("Content-Type", "application/octet-stream")
 		rw.Header().Set("Content-Length", fmt.Sprint(fileInfo.Size()))
 

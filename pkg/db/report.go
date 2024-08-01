@@ -47,8 +47,7 @@ func GetReport(reportID string) (*apis.Report, error) {
 
 	row := DB.QueryRow("SELECT id, name, rating, report_time, data FROM report WHERE id = ? LIMIT 1", reportID)
 
-	var id, name, reportTime, data string
-	var rating int
+	var id, name, rating, reportTime, data string
 	report := apis.NewReport()
 	err = row.Scan(&id, &name, &rating, &reportTime, &data)
 	if err != nil {

@@ -8,12 +8,12 @@ type Record struct {
 	Timer      string `json:"timer"`
 	Cron       string `json:"cron"`
 	State      string `json:"state"`
+	Rating     string `json:"rating"`
 	ReportID   string `json:"report_id"`
 	TemplateID string `json:"template_id"`
 	NotifyID   string `json:"notify_id"`
 	PlanID     string `json:"plan_id"`
 	Mode       int    `json:"mode"`
-	Rating     int    `json:"rating"`
 }
 
 func NewRecords() []*Record {

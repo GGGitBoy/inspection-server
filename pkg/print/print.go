@@ -224,7 +224,7 @@ func ToPrintPDF(print *Print) error {
 	}
 
 	// 保存PDF文档
-	err = pdf.WritePdf(common.PrintPDFPath + "report-" + print.ReportTime + ".pdf")
+	err = pdf.WritePdf(common.PrintPDFPath + common.GetReportFileName(print.ReportTime))
 	if err != nil {
 		return err
 	}

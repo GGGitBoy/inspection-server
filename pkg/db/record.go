@@ -14,11 +14,11 @@ func GetRecord(recordID string) (*apis.Record, error) {
 	}
 	defer DB.Close()
 
-	row := DB.QueryRow("SELECT id, name, start_time, end_time, timer, cron, state, report_id, template_id, notify_id, plan_id, mode, rating FROM record WHERE id = ? LIMIT 1", recordID)
+	row := DB.QueryRow("SELECT id, name, start_time, end_time, timer, cron, state, rating, report_id, template_id, notify_id, plan_id, mode FROM record WHERE id = ? LIMIT 1", recordID)
 
-	var id, name, startTime, endTime, timer, cron, state, reportID, templateID, notifyID, planID string
-	var mode, rating int
-	err = row.Scan(&id, &name, &startTime, &endTime, &timer, &cron, &state, &reportID, &templateID, &notifyID, &planID, &mode, &rating)
+	var id, name, startTime, endTime, timer, cron, state, rating, reportID, templateID, notifyID, planID string
+	var mode int
+	err = row.Scan(&id, &name, &startTime, &endTime, &timer, &cron, &state, &rating, &reportID, &templateID, &notifyID, &planID, &mode)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			fmt.Println("没有找到匹配的数据")
@@ -35,12 +35,12 @@ func GetRecord(recordID string) (*apis.Record, error) {
 		Timer:      timer,
 		Cron:       cron,
 		State:      state,
+		Rating:     rating,
 		ReportID:   reportID,
 		TemplateID: templateID,
 		NotifyID:   notifyID,
 		PlanID:     planID,
 		Mode:       mode,
-		Rating:     rating,
 	}, nil
 }
 
@@ -51,7 +51,7 @@ func ListRecord() ([]*apis.Record, error) {
 	}
 	defer DB.Close()
 
-	rows, err := DB.Query("SELECT id, name, start_time, end_time, timer, cron, state, report_id, template_id, notify_id, plan_id, mode, rating FROM record")
+	rows, err := DB.Query("SELECT id, name, start_time, end_time, timer, cron, state, rating, report_id, template_id, notify_id, plan_id, mode FROM record")
 	if err != nil {
 		return nil, err
 	}
@@ -59,9 +59,9 @@ func ListRecord() ([]*apis.Record, error) {
 	defer rows.Close()
 	records := apis.NewRecords()
 	for rows.Next() {
-		var id, name, startTime, endTime, timer, cron, state, reportID, templateID, notifyID, planID string
-		var mode, rating int
-		err = rows.Scan(&id, &name, &startTime, &endTime, &timer, &cron, &state, &reportID, &templateID, &notifyID, &planID, &mode, &rating)
+		var id, name, startTime, endTime, timer, cron, state, rating, reportID, templateID, notifyID, planID string
+		var mode int
+		err = rows.Scan(&id, &name, &startTime, &endTime, &timer, &cron, &state, &rating, &reportID, &templateID, &notifyID, &planID, &mode)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				fmt.Println("没有找到匹配的数据")
@@ -78,12 +78,12 @@ func ListRecord() ([]*apis.Record, error) {
 			Timer:      timer,
 			Cron:       cron,
 			State:      state,
+			Rating:     rating,
 			ReportID:   reportID,
 			TemplateID: templateID,
 			NotifyID:   notifyID,
 			PlanID:     planID,
 			Mode:       mode,
-			Rating:     rating,
 		})
 	}
 
@@ -102,12 +102,12 @@ func CreateRecord(record *apis.Record) error {
 		log.Fatal(err)
 	}
 
-	stmt, err := tx.Prepare("INSERT INTO record(id, name, start_time, end_time, timer, cron, state, report_id, template_id, notify_id, plan_id, mode, rating) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+	stmt, err := tx.Prepare("INSERT INTO record(id, name, start_time, end_time, timer, cron, state, rating, report_id, template_id, notify_id, plan_id, mode) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(record.ID, record.Name, record.StartTime, record.EndTime, record.Timer, record.Cron, record.State, record.ReportID, record.TemplateID, record.NotifyID, record.PlanID, record.Mode, record.Rating)
+	_, err = stmt.Exec(record.ID, record.Name, record.StartTime, record.EndTime, record.Timer, record.Cron, record.State, record.Rating, record.ReportID, record.TemplateID, record.NotifyID, record.PlanID, record.Mode)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func UpdateRecord(record *apis.Record) error {
 	}
 	defer DB.Close()
 
-	_, err = DB.Exec("UPDATE record SET name = ?, start_time = ?, end_time = ?, timer = ?, cron = ?, state = ?, report_id = ?, template_id = ?, notify_id = ?, plan_id = ?, mode = ?, rating = ?  WHERE id = ?", record.Name, record.StartTime, record.EndTime, record.Timer, record.Cron, record.State, record.ReportID, record.TemplateID, record.NotifyID, record.PlanID, record.Mode, record.Rating, record.ID)
+	_, err = DB.Exec("UPDATE record SET name = ?, start_time = ?, end_time = ?, timer = ?, cron = ?, state = ?, rating = ?, report_id = ?, template_id = ?, notify_id = ?, plan_id = ?, mode = ?  WHERE id = ?", record.Name, record.StartTime, record.EndTime, record.Timer, record.Cron, record.State, record.Rating, record.ReportID, record.TemplateID, record.NotifyID, record.PlanID, record.Mode, record.ID)
 	if err != nil {
 		return err
 	}

@@ -8,7 +8,7 @@ type Report struct {
 
 type Global struct {
 	Name       string `json:"name"`
-	Rating     int    `json:"rating"`
+	Rating     string `json:"rating"`
 	ReportTime string `json:"report_time"`
 }
 

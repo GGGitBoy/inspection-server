@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"os"
 )
 
@@ -38,3 +39,7 @@ var (
 
 	AgentYamlPath = WorkDir + "yaml/"
 )
+
+func GetReportFileName(time string) string {
+	return fmt.Sprintf("巡检报告(%s).pdf", time)
+}

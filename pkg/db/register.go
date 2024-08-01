@@ -13,7 +13,7 @@ var (
 		`CREATE TABLE IF NOT EXISTS report (
             id VARCHAR(255) NOT NULL PRIMARY KEY,
             name TEXT,
-            rating INT,
+            rating TEXT, 
             report_time TEXT,
             data TEXT
         );`,
@@ -35,12 +35,12 @@ var (
 			timer TEXT,
             cron TEXT,
 			state TEXT,
+			rating TEXT, 
             report_id TEXT,
 			template_id TEXT,
             notify_id TEXT,
 			plan_id TEXT, 
-            mode INT,
-            rating INT
+            mode INT
         );`,
 		`CREATE TABLE IF NOT EXISTS template (
             id VARCHAR(255) NOT NULL PRIMARY KEY,
