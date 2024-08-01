@@ -14,10 +14,17 @@ func Inspection(plan *apis.Plan) error {
 	record.ID = common.GetUUID()
 	record.Name = plan.Name
 	record.Mode = plan.Mode
+	record.State = "巡检中"
+	record.TemplateID = plan.TemplateID
+	record.NotifyID = plan.NotifyID
 	record.StartTime = time.Now().Format(time.DateTime)
+	err := db.CreateRecord(record)
+	if err != nil {
+		return err
+	}
 
 	plan.State = "巡检中"
-	err := db.UpdatePlan(plan)
+	err = db.UpdatePlan(plan)
 	if err != nil {
 		return err
 	}
@@ -148,20 +155,22 @@ func Inspection(plan *apis.Plan) error {
 
 		p := pdfPrint.NewPrint()
 		p.URL = "http://127.0.0.1/#/inspection-record/result-pdf-view/" + report.ID
+		p.ReportTime = report.Global.ReportTime
 		err = pdfPrint.FullScreenshot(p)
 		if err != nil {
 			return err
 		}
 
-		err = send.Notify(notify.AppID, notify.AppSecret, common.PrintPDFName, common.PrintPDFPath)
+		err = send.Notify(notify.AppID, notify.AppSecret, "report-"+p.ReportTime+".pdf", common.PrintPDFPath+"report-"+p.ReportTime+".pdf", "该测试报告的健康等级为: "+string(report.Global.Rating))
 		if err != nil {
 			return err
 		}
 	}
 
 	record.EndTime = time.Now().Format(time.DateTime)
+	record.Rating = report.Global.Rating
 	record.ReportID = report.ID
-	err = db.CreateRecord(record)
+	err = db.UpdateRecord(record)
 	if err != nil {
 		return err
 	}

@@ -32,8 +32,14 @@ var (
             name TEXT,
             start_time TEXT,
             end_time TEXT,
+			timer TEXT,
+            cron TEXT,
+			state TEXT,
+            report_id TEXT,
+			template_id TEXT,
+            notify_id TEXT,
             mode INT,
-            report_id TEXT
+            rating INT
         );`,
 		`CREATE TABLE IF NOT EXISTS template (
             id VARCHAR(255) NOT NULL PRIMARY KEY,

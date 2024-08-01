@@ -28,8 +28,8 @@ var (
 	ConfigFilePath = WorkDir + "config/config.yml"
 
 	PrintShotPath = WorkDir + "print/screenshot.png"
-	PrintPDFPath  = WorkDir + "print/report.pdf"
-	PrintPDFName  = "report.pdf"
+	PrintPDFPath  = WorkDir + "print/"
+	//PrintPDFName  = "report.pdf"
 
 	WriteKubeconfigPath = WorkDir + "kubeconfig/"
 

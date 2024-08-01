@@ -130,7 +130,7 @@ func TestNotify() http.Handler {
 			log.Fatal(err)
 		}
 
-		err = send.Notify(notify.AppID, notify.AppSecret, common.SendTestPDFName, common.SendTestPDFPath)
+		err = send.Notify(notify.AppID, notify.AppSecret, common.SendTestPDFName, common.SendTestPDFPath, "测试成功")
 		if err != nil {
 			log.Fatal(err)
 		}

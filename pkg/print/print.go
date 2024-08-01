@@ -16,7 +16,8 @@ import (
 var waitSecond = 10
 
 type Print struct {
-	URL string `json:"url"`
+	URL        string `json:"url"`
+	ReportTime string `json:"report_time"`
 }
 
 func NewPrint() *Print {
@@ -172,7 +173,7 @@ func FullScreenshot(print *Print) error {
 		return err
 	}
 
-	err = ToPrintPDF()
+	err = ToPrintPDF(print)
 	if err != nil {
 		return err
 	}
@@ -180,7 +181,7 @@ func FullScreenshot(print *Print) error {
 	return nil
 }
 
-func ToPrintPDF() error {
+func ToPrintPDF(print *Print) error {
 	imgFile, err := os.Open(common.PrintShotPath)
 	if err != nil {
 		return err
@@ -223,7 +224,7 @@ func ToPrintPDF() error {
 	}
 
 	// 保存PDF文档
-	err = pdf.WritePdf(common.PrintPDFPath)
+	err = pdf.WritePdf(common.PrintPDFPath + "report-" + print.ReportTime + ".pdf")
 	if err != nil {
 		return err
 	}

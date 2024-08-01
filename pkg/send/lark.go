@@ -9,7 +9,7 @@ import (
 	"os"
 )
 
-func Notify(appID, appSecret, fileName, filePath string) error {
+func Notify(appID, appSecret, fileName, filePath, message string) error {
 	// 创建 Client
 	client := lark.NewClient(appID, appSecret)
 	// 创建请求对象
@@ -67,13 +67,12 @@ func Notify(appID, appSecret, fileName, filePath string) error {
 	fmt.Println(larkcore.Prettify(listChatResp))
 
 	for _, i := range listChatResp.Data.Items {
-
 		createMessageReq := larkim.NewCreateMessageReqBuilder().
 			ReceiveIdType(`chat_id`).
 			Body(larkim.NewCreateMessageReqBodyBuilder().
 				ReceiveId(*i.ChatId).
-				MsgType(`file`).
-				Content("{\"file_key\":\"" + *createFileResp.Data.FileKey + "\"}").
+				MsgType(`text`).
+				Content("{\"text\":\"" + message + "\"}").
 				Build()).
 			Build()
 
@@ -92,8 +91,32 @@ func Notify(appID, appSecret, fileName, filePath string) error {
 			return err
 		}
 
+		createFileMessageReq := larkim.NewCreateMessageReqBuilder().
+			ReceiveIdType(`chat_id`).
+			Body(larkim.NewCreateMessageReqBodyBuilder().
+				ReceiveId(*i.ChatId).
+				MsgType(`file`).
+				Content("{\"file_key\":\"" + *createFileResp.Data.FileKey + "\"}").
+				Build()).
+			Build()
+
+		// 发起请求
+		createFileMessageResp, err := client.Im.Message.Create(context.Background(), createFileMessageReq)
+
+		// 处理错误
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		// 服务端错误处理
+		if !createFileMessageResp.Success() {
+			fmt.Println(createFileMessageResp.Code, createFileMessageResp.Msg, createFileMessageResp.RequestId())
+			return err
+		}
+
 		// 业务处理
-		fmt.Println(larkcore.Prettify(createMessageResp))
+		fmt.Println(larkcore.Prettify(createFileMessageResp))
 	}
 
 	return nil
