@@ -185,7 +185,7 @@ func Inspection(plan *apis.Plan) error {
 			return err
 		}
 
-		err = send.Notify(notify.AppID, notify.AppSecret, common.GetReportFileName(p.ReportTime), common.PrintPDFPath+common.GetReportFileName(p.ReportTime), "该测试报告的健康等级为: 优")
+		err = send.Notify(notify.AppID, notify.AppSecret, common.GetReportFileName(p.ReportTime), common.PrintPDFPath+common.GetReportFileName(p.ReportTime), sendMessage)
 		if err != nil {
 			return err
 		}
