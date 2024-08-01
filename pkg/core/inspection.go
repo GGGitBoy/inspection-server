@@ -7,6 +7,7 @@ import (
 	"inspection-server/pkg/db"
 	pdfPrint "inspection-server/pkg/print"
 	"inspection-server/pkg/send"
+	"strings"
 	"time"
 )
 
@@ -50,6 +51,7 @@ func Inspection(plan *apis.Plan) error {
 		return err
 	}
 
+	level := 0
 	var sendMessageDetail []string
 	for clusterID, client := range clients {
 		for _, k := range template.KubernetesConfig {
@@ -126,17 +128,26 @@ func Inspection(plan *apis.Plan) error {
 				clusterResource.Inspections = resourceInspections
 
 				for _, c := range coreInspections {
-					if c.Level <= 2 {
+					if c.Level > level {
+						level = c.Level
+					}
+					if c.Level >= 2 {
 						sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 警告: %s", k.ClusterName, c.Title))
 					}
 				}
 				for _, n := range nodeInspections {
-					if n.Level <= 2 {
+					if n.Level > level {
+						level = n.Level
+					}
+					if n.Level >= 2 {
 						sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 警告: %s", k.ClusterName, n.Title))
 					}
 				}
 				for _, r := range resourceInspections {
-					if r.Level <= 2 {
+					if r.Level > level {
+						level = r.Level
+					}
+					if r.Level >= 2 {
 						sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 警告: %s", k.ClusterName, r.Title))
 					}
 				}
@@ -152,11 +163,22 @@ func Inspection(plan *apis.Plan) error {
 		}
 	}
 
+	var rating string
+	if level == 0 {
+		rating = "优"
+	} else if level == 1 {
+		rating = "高"
+	} else if level == 2 {
+		rating = "中"
+	} else if level == 3 {
+		rating = "低"
+	}
+
 	report = &apis.Report{
 		ID: common.GetUUID(),
 		Global: &apis.Global{
 			Name:       record.Name,
-			Rating:     "优",
+			Rating:     rating,
 			ReportTime: time.Now().Format(time.DateTime),
 		},
 		Kubernetes: kubernetes,
@@ -166,10 +188,16 @@ func Inspection(plan *apis.Plan) error {
 		return err
 	}
 
-	sendMessage := "该巡检报告的健康等级为: " + report.Global.Rating + "\n"
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, report.Global.Rating))
+
 	for _, s := range sendMessageDetail {
-		sendMessage = sendMessage + s + "\n"
+		sb.WriteString(fmt.Sprintf(`%s\n`, s))
 	}
+
+	str := sb.String()
+	fmt.Println(str)
+	sendMessage := str
 
 	if plan.NotifyID != "" {
 		notify, err := db.GetNotify(plan.NotifyID)

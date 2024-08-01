@@ -72,7 +72,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 			Body(larkim.NewCreateMessageReqBodyBuilder().
 				ReceiveId(*i.ChatId).
 				MsgType(`text`).
-				Content("{\"text\":\"" + message + "\"}").
+				Content(fmt.Sprintf("{\"text\":\"%s\"}", message)).
 				Build()).
 			Build()
 

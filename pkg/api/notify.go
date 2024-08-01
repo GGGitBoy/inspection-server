@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
@@ -10,6 +11,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func GetNotify() http.Handler {
@@ -130,7 +132,26 @@ func TestNotify() http.Handler {
 			log.Fatal(err)
 		}
 
-		err = send.Notify(notify.AppID, notify.AppSecret, common.SendTestPDFName, common.SendTestPDFPath, "测试成功")
+		//message := `该巡检报告的健康等级为:\n该巡检报告的健康等级为:\n该巡检报告的健康等级为:\n该巡检报告的健康等级为:\n该巡检报告的健康等级为:\n该巡检报告的健康等级为:\n该巡检报告的健康等级为:`
+
+		var sb strings.Builder
+		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
+		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
+		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
+		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
+		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
+		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
+		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
+		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
+		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
+		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
+		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
+		str := sb.String()
+		fmt.Println(str)
+
+		message := str
+
+		err = send.Notify(notify.AppID, notify.AppSecret, common.SendTestPDFName, common.SendTestPDFPath, message)
 		if err != nil {
 			log.Fatal(err)
 		}
