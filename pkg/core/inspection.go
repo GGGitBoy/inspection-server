@@ -17,6 +17,7 @@ func Inspection(plan *apis.Plan) error {
 	record.State = "巡检中"
 	record.TemplateID = plan.TemplateID
 	record.NotifyID = plan.NotifyID
+	record.PlanID = plan.ID
 	record.StartTime = time.Now().Format(time.DateTime)
 	err := db.CreateRecord(record)
 	if err != nil {

@@ -11,6 +11,7 @@ type Record struct {
 	ReportID   string `json:"report_id"`
 	TemplateID string `json:"template_id"`
 	NotifyID   string `json:"notify_id"`
+	PlanID     string `json:"plan_id"`
 	Mode       int    `json:"mode"`
 	Rating     int    `json:"rating"`
 }

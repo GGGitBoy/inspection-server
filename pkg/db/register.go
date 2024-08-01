@@ -38,6 +38,7 @@ var (
             report_id TEXT,
 			template_id TEXT,
             notify_id TEXT,
+			plan_id TEXT, 
             mode INT,
             rating INT
         );`,
