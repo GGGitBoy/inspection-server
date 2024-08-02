@@ -56,6 +56,7 @@ func Inspection(plan *apis.Plan) error {
 	for clusterID, client := range clients {
 		for _, k := range template.KubernetesConfig {
 			if k.ClusterID == clusterID && k.Enable {
+				sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 巡检警告：", k.ClusterName))
 				clusterCore := apis.NewClusterCore()
 				clusterNode := apis.NewClusterNode()
 				clusterResource := apis.NewClusterResource()
@@ -132,7 +133,7 @@ func Inspection(plan *apis.Plan) error {
 						level = c.Level
 					}
 					if c.Level >= 2 {
-						sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 警告: %s", k.ClusterName, c.Title))
+						sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("%s", c.Title))
 					}
 				}
 				for _, n := range nodeInspections {
@@ -140,7 +141,7 @@ func Inspection(plan *apis.Plan) error {
 						level = n.Level
 					}
 					if n.Level >= 2 {
-						sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 警告: %s", k.ClusterName, n.Title))
+						sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("%s", n.Title))
 					}
 				}
 				for _, r := range resourceInspections {
@@ -148,7 +149,7 @@ func Inspection(plan *apis.Plan) error {
 						level = r.Level
 					}
 					if r.Level >= 2 {
-						sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 警告: %s", k.ClusterName, r.Title))
+						sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("%s", r.Title))
 					}
 				}
 

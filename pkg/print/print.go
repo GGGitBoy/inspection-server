@@ -25,6 +25,7 @@ func NewPrint() *Print {
 }
 
 func FullScreenshot(print *Print) error {
+	time.Sleep(2 * time.Second)
 	if common.PrintWaitSecond != "" {
 		num, err := strconv.Atoi(common.PrintWaitSecond)
 		if err == nil {

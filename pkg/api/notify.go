@@ -136,16 +136,6 @@ func TestNotify() http.Handler {
 
 		var sb strings.Builder
 		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
-		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
-		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
-		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
-		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
-		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
-		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
-		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
-		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
-		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
-		sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, "report.Global.Rating"))
 		str := sb.String()
 		fmt.Println(str)
 
