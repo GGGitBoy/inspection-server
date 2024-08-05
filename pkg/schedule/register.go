@@ -3,6 +3,7 @@ package schedule
 import (
 	"fmt"
 	"github.com/robfig/cron/v3"
+	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/core"
 	"inspection-server/pkg/db"
@@ -25,13 +26,13 @@ type Schedule struct {
 func Register() error {
 	CronClient.Start()
 
-	plans, err := db.ListPlan()
+	tasks, err := db.ListTask()
 	if err != nil {
 		return err
 	}
 
-	for _, plan := range plans {
-		err = AddSchedule(plan)
+	for _, task := range tasks {
+		err = AddSchedule(task)
 		if err != nil {
 			return err
 		}
@@ -40,14 +41,12 @@ func Register() error {
 	return nil
 }
 
-func AddSchedule(plan *apis.Plan) error {
+func AddSchedule(task *apis.Task) error {
 	var err error
-	if plan.Mode == 0 {
-		go ExecuteTask(plan)
-	} else if plan.Mode == 1 {
-		err = AddTimePlan(plan)
-	} else if plan.Mode == 2 {
-		err = AddCornPlan(plan)
+	if task.Mode == "计划任务" {
+		err = AddTimetask(task)
+	} else if task.Mode == "周期任务" {
+		err = AddCorntask(task)
 	}
 
 	for id, _ := range TaskMap {
@@ -57,12 +56,12 @@ func AddSchedule(plan *apis.Plan) error {
 	return err
 }
 
-func RemoveSchedule(plan *apis.Plan) error {
+func RemoveSchedule(task *apis.Task) error {
 	var err error
-	if plan.Mode == 1 {
-		err = RemoveTimePlan(plan.ID)
-	} else if plan.Mode == 2 {
-		err = RemoveCornPlan(plan.ID)
+	if task.Mode == "计划任务" {
+		err = RemoveTimetask(task.ID)
+	} else if task.Mode == "周期任务" {
+		err = RemoveCorntask(task.ID)
 	}
 
 	for id, _ := range TaskMap {
@@ -81,47 +80,22 @@ func GetLoc() *time.Location {
 	return loc
 }
 
-func ExecuteTask(plan *apis.Plan) {
-	fmt.Printf("Executing task %s: %s\n", plan.ID, plan.Name)
-	err := core.Inspection(plan)
+func ExecuteTask(task *apis.Task) {
+	logrus.Infof("Executing task %s: %s\n", task.ID, task.Name)
+
+	err, errMessage := core.Inspection(task)
 	if err != nil {
-		fmt.Println(err)
-		err = TaskError(plan)
+		errMessage.WriteString(fmt.Sprintf("巡检过程中报错: %v\n", err))
+		task.State = "巡检失败"
+		task.ErrMessage = errMessage.String()
+		err = db.Updatetask(task)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Errorf("update task ErrMessage error: %v\n", err)
 		}
 	} else {
-		if plan.Mode == 0 {
-			err = db.DeletePlan(plan.ID)
-			if err != nil {
-				log.Fatal(err)
-			}
-		} else if plan.Mode == 1 {
-			err = RemoveSchedule(plan)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			err = db.DeletePlan(plan.ID)
-			if err != nil {
-				log.Fatal(err)
-			}
-		} else if plan.Mode == 2 {
-			plan.State = "计划中"
-			err = db.UpdatePlan(plan)
-			if err != nil {
-				log.Fatal(err)
-			}
+		err = RemoveSchedule(task)
+		if err != nil {
+			logrus.Errorf("remove task schedule error: %v\n", err)
 		}
 	}
-}
-
-func TaskError(plan *apis.Plan) error {
-	plan.State = "巡检失败"
-	err := db.UpdatePlan(plan)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

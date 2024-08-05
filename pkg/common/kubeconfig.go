@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/apis"
 	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,11 +50,6 @@ func getAuthHeader() http.Header {
 }
 
 func GenerateKubeconfig(clients map[string]*apis.Client) error {
-	err := WriteKubeconfig(LocalCluster)
-	if err != nil {
-		return err
-	}
-
 	localKubernetesClien, err := GetKubernetesClient(LocalCluster)
 	if err != nil {
 		return err
@@ -65,10 +61,6 @@ func GenerateKubeconfig(clients map[string]*apis.Client) error {
 	}
 
 	for _, c := range clusters.Items {
-		err = WriteKubeconfig(c.GetName())
-		if err != nil {
-			return err
-		}
 		kubernetesClient, err := GetKubernetesClient(c.GetName())
 		if err != nil {
 			return err
@@ -99,8 +91,12 @@ func GetKubernetesClient(name string) (*apis.Client, error) {
 }
 
 func WriteKubeconfig(clusterID string) error {
-	client := getClient()
+	if FileExists(WriteKubeconfigPath + clusterID) {
+		logrus.Infof("cluster %s kubeconfig already exists\n", clusterID)
+		return nil
+	}
 
+	client := getClient()
 	req, err := http.NewRequest(http.MethodPost, ServerURL+"/v3/clusters/"+clusterID+"?action=generateKubeconfig", strings.NewReader(""))
 	if err != nil {
 		return err

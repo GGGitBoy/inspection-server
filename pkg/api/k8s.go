@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/common"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"log"
 	"net/http"
 )
 
@@ -25,6 +26,11 @@ type Data struct {
 	Namespace string `json:"namespace"`
 }
 
+type Cluster struct {
+	ClusterID   string `json:"cluster_id"`
+	ClusterName string `json:"cluster_name"`
+}
+
 func NewResource() *Resource {
 	return &Resource{
 		Nodes:        []string{},
@@ -36,11 +42,6 @@ func NewResource() *Resource {
 	}
 }
 
-type Cluster struct {
-	ClusterID   string `json:"cluster_id"`
-	ClusterName string `json:"cluster_name"`
-}
-
 func NewClusters() []*Cluster {
 	return []*Cluster{}
 }
@@ -48,21 +49,23 @@ func NewClusters() []*Cluster {
 func GetClusters() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		clusters := NewClusters()
-
 		localKubernetesClient, err := common.GetKubernetesClient(common.LocalCluster)
 		if err != nil {
-			log.Fatal(err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
 		}
 
 		clusterList, err := localKubernetesClient.DynamicClient.Resource(common.ClusterRes).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			log.Fatal(err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
 		}
 
 		for _, c := range clusterList.Items {
 			spec, _, err := unstructured.NestedMap(c.UnstructuredContent(), "spec")
 			if err != nil {
-				log.Fatalf("Error getting spec: %v", err)
+				logrus.Errorf("Could not get cluster %s spec : %v\n", c.GetName(), err)
+				continue
 			}
 
 			displayName := spec["displayName"].(string)
@@ -70,12 +73,12 @@ func GetClusters() http.Handler {
 				ClusterID:   c.GetName(),
 				ClusterName: displayName,
 			})
-
 		}
 
 		jsonData, err := json.MarshalIndent(clusters, "", "\t")
 		if err != nil {
-			log.Fatal(err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
 		}
 
 		rw.Write(jsonData)
@@ -85,18 +88,19 @@ func GetClusters() http.Handler {
 func GetResource() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		resource := NewResource()
-
 		vars := mux.Vars(req)
 		clusterID := vars["id"]
 
 		kubernetesClient, err := common.GetKubernetesClient(clusterID)
 		if err != nil {
-			log.Fatal(err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
 		}
 
 		nodes, err := kubernetesClient.Clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			log.Fatal(err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
 		}
 
 		for _, r := range nodes.Items {
@@ -105,7 +109,8 @@ func GetResource() http.Handler {
 
 		deployments, err := kubernetesClient.Clientset.AppsV1().Deployments("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			log.Fatal(err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
 		}
 
 		for _, r := range deployments.Items {
@@ -117,7 +122,8 @@ func GetResource() http.Handler {
 
 		daemonSets, err := kubernetesClient.Clientset.AppsV1().DaemonSets("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			log.Fatal(err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
 		}
 
 		for _, r := range daemonSets.Items {
@@ -129,7 +135,8 @@ func GetResource() http.Handler {
 
 		statefulSets, err := kubernetesClient.Clientset.AppsV1().StatefulSets("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			log.Fatal(err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
 		}
 
 		for _, r := range statefulSets.Items {
@@ -141,7 +148,8 @@ func GetResource() http.Handler {
 
 		jobs, err := kubernetesClient.Clientset.BatchV1().Jobs("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			log.Fatal(err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
 		}
 
 		for _, r := range jobs.Items {
@@ -153,7 +161,8 @@ func GetResource() http.Handler {
 
 		cronJobs, err := kubernetesClient.Clientset.BatchV1().CronJobs("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			log.Fatal(err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
 		}
 
 		for _, r := range cronJobs.Items {
@@ -165,7 +174,44 @@ func GetResource() http.Handler {
 
 		jsonData, err := json.MarshalIndent(resource, "", "\t")
 		if err != nil {
-			log.Fatal(err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
+
+		rw.Write(jsonData)
+	})
+}
+
+type GrafanaService struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	ClusterIP string `json:"cluster_ip"`
+}
+
+func GetGrafanaClusterIP() http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		localKubernetesClient, err := common.GetKubernetesClient(common.LocalCluster)
+		if err != nil {
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
+
+		service, err := localKubernetesClient.Clientset.CoreV1().Services("cattle-global-monitoring").Get(context.TODO(), "access-grafana", metav1.GetOptions{})
+		if err != nil && !k8serrors.IsNotFound(err) {
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
+
+		grafanaService := &GrafanaService{
+			Name:      service.Name,
+			Namespace: service.Namespace,
+			ClusterIP: service.Spec.ClusterIP,
+		}
+
+		jsonData, err := json.MarshalIndent(grafanaService, "", "\t")
+		if err != nil {
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
 		}
 
 		rw.Write(jsonData)

@@ -11,36 +11,24 @@ import (
 	"time"
 )
 
-func Inspection(plan *apis.Plan) error {
-	record := apis.NewRecord()
-	record.ID = common.GetUUID()
-	record.Name = plan.Name
-	record.Mode = plan.Mode
-	record.State = "巡检中"
-	record.TemplateID = plan.TemplateID
-	record.NotifyID = plan.NotifyID
-	record.PlanID = plan.ID
-	record.StartTime = time.Now().Format(time.DateTime)
-	err := db.CreateRecord(record)
+func Inspection(task *apis.Task) (error, strings.Builder) {
+	var errMessage strings.Builder
+
+	task.State = "巡检中"
+	err := db.Updatetask(task)
 	if err != nil {
-		return err
+		return err, errMessage
 	}
 
-	plan.State = "巡检中"
-	err = db.UpdatePlan(plan)
+	template, err := db.GetTemplate(task.TemplateID)
 	if err != nil {
-		return err
-	}
-
-	template, err := db.GetTemplate(plan.TemplateID)
-	if err != nil {
-		return err
+		return err, errMessage
 	}
 
 	clients := apis.NewClients()
 	err = common.GenerateKubeconfig(clients)
 	if err != nil {
-		return err
+		return err, errMessage
 	}
 
 	report := apis.NewReport()
@@ -48,7 +36,7 @@ func Inspection(plan *apis.Plan) error {
 
 	allGrafanaInspections, err := GetAllGrafanaInspections()
 	if err != nil {
-		return err
+		errMessage.WriteString(fmt.Sprintf("获取图表告警失败: %v\n", err))
 	}
 
 	level := 0
@@ -57,30 +45,30 @@ func Inspection(plan *apis.Plan) error {
 		for _, k := range template.KubernetesConfig {
 			if k.ClusterID == clusterID && k.Enable {
 				sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 巡检警告：", k.ClusterName))
+
 				clusterCore := apis.NewClusterCore()
 				clusterNode := apis.NewClusterNode()
 				clusterResource := apis.NewClusterResource()
-
 				coreInspections := apis.NewInspections()
 				nodeInspections := apis.NewInspections()
 				resourceInspections := apis.NewInspections()
 
 				NodeNodeArray, nodeInspectionArray, err := GetNodes(client, k.ClusterNodeConfig.NodeConfig)
 				if err != nil {
-					return err
+					errMessage.WriteString(fmt.Sprintf("获取集群 %s 节点相关巡检信息时失败: %v\n", clusterID, err))
 				}
 				nodeInspections = append(nodeInspections, nodeInspectionArray...)
 
 				ResourceWorkloadArray, resourceInspectionArray, err := GetWorkloads(client, k.ClusterResourceConfig.WorkloadConfig)
 				if err != nil {
-					return err
+					errMessage.WriteString(fmt.Sprintf("获取集群 %s 工作负载相关巡检信息时失败: %v\n", clusterID, err))
 				}
 				resourceInspections = append(resourceInspections, resourceInspectionArray...)
 
 				if k.ClusterResourceConfig.NamespaceConfig.Enable {
 					ResourceNamespaceArray, resourceInspectionArray, err := GetNamespaces(client)
 					if err != nil {
-						return err
+						errMessage.WriteString(fmt.Sprintf("获取集群 %s 命名空间相关巡检信息时失败: %v\n", clusterID, err))
 					}
 
 					clusterResource.Namespace = ResourceNamespaceArray
@@ -90,17 +78,17 @@ func Inspection(plan *apis.Plan) error {
 				if k.ClusterResourceConfig.ServiceConfig.Enable {
 					ResourceServiceArray, resourceInspectionArray, err := GetServices(client)
 					if err != nil {
-						return err
+						errMessage.WriteString(fmt.Sprintf("获取集群 %s Service 相关巡检信息时失败: %v\n", clusterID, err))
 					}
 
 					clusterResource.Service = ResourceServiceArray
 					resourceInspections = append(resourceInspections, resourceInspectionArray...)
 				}
 
-				if k.ClusterResourceConfig.ServiceConfig.Enable {
+				if k.ClusterResourceConfig.IngressConfig.Enable {
 					ResourceIngressArray, resourceInspectionArray, err := GetIngress(client)
 					if err != nil {
-						return err
+						errMessage.WriteString(fmt.Sprintf("获取集群 %s Ingress 相关巡检信息时失败: %v\n", clusterID, err))
 					}
 
 					clusterResource.Ingress = ResourceIngressArray
@@ -178,7 +166,7 @@ func Inspection(plan *apis.Plan) error {
 	report = &apis.Report{
 		ID: common.GetUUID(),
 		Global: &apis.Global{
-			Name:       record.Name,
+			Name:       task.Name,
 			Rating:     rating,
 			ReportTime: time.Now().Format(time.DateTime),
 		},
@@ -186,7 +174,7 @@ func Inspection(plan *apis.Plan) error {
 	}
 	err = db.CreateReport(report)
 	if err != nil {
-		return err
+		return err, errMessage
 	}
 
 	var sb strings.Builder
@@ -196,38 +184,35 @@ func Inspection(plan *apis.Plan) error {
 		sb.WriteString(fmt.Sprintf(`%s\n`, s))
 	}
 
-	str := sb.String()
-	fmt.Println(str)
-	sendMessage := str
-
-	if plan.NotifyID != "" {
-		notify, err := db.GetNotify(plan.NotifyID)
+	if task.NotifyID != "" {
+		notify, err := db.GetNotify(task.NotifyID)
 		if err != nil {
-			return err
+			return err, errMessage
 		}
 
 		p := pdfPrint.NewPrint()
-		p.URL = "http://127.0.0.1/#/inspection-record/result-pdf-view/" + report.ID
+		p.URL = "http://127.0.0.1/#/inspection-task/result-pdf-view/" + report.ID
 		p.ReportTime = report.Global.ReportTime
 		err = pdfPrint.FullScreenshot(p)
 		if err != nil {
-			return err
+			return err, errMessage
 		}
 
-		err = send.Notify(notify.AppID, notify.AppSecret, common.GetReportFileName(p.ReportTime), common.PrintPDFPath+common.GetReportFileName(p.ReportTime), sendMessage)
+		err = send.Notify(notify.AppID, notify.AppSecret, common.GetReportFileName(p.ReportTime), common.PrintPDFPath+common.GetReportFileName(p.ReportTime), sb.String())
 		if err != nil {
-			return err
+			return err, errMessage
 		}
 	}
 
-	record.EndTime = time.Now().Format(time.DateTime)
-	record.Rating = report.Global.Rating
-	record.ReportID = report.ID
-	record.State = "巡检完成"
-	err = db.UpdateRecord(record)
+	task.EndTime = time.Now().Format(time.DateTime)
+	task.Rating = report.Global.Rating
+	task.ReportID = report.ID
+	task.State = "巡检完成"
+	task.ErrMessage = errMessage.String()
+	err = db.Updatetask(task)
 	if err != nil {
-		return err
+		return err, errMessage
 	}
 
-	return nil
+	return nil, errMessage
 }

@@ -17,30 +17,20 @@ var (
             report_time TEXT,
             data TEXT
         );`,
-		`CREATE TABLE IF NOT EXISTS plan (
-            id VARCHAR(255) NOT NULL PRIMARY KEY,
-            name TEXT,
-            timer TEXT,
-            cron TEXT,
-            mode INT,
-            state TEXT,
-            template_id TEXT,
-            notify_id TEXT
-        );`,
-		`CREATE TABLE IF NOT EXISTS record (
+		`CREATE TABLE IF NOT EXISTS task (
             id VARCHAR(255) NOT NULL PRIMARY KEY,
             name TEXT,
             start_time TEXT,
             end_time TEXT,
-			timer TEXT,
             cron TEXT,
 			state TEXT,
 			rating TEXT, 
             report_id TEXT,
 			template_id TEXT,
             notify_id TEXT,
-			plan_id TEXT, 
-            mode INT
+			task_id TEXT, 
+            mode TEXT, 
+			err_message TEXT
         );`,
 		`CREATE TABLE IF NOT EXISTS template (
             id VARCHAR(255) NOT NULL PRIMARY KEY,

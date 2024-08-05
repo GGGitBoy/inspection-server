@@ -2,44 +2,26 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/gorilla/mux"
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
 	"inspection-server/pkg/db"
+	"inspection-server/pkg/schedule"
 	"io"
 	"net/http"
 )
 
-func GetTemplate() http.Handler {
+func GetTask() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
-		templateID := vars["id"]
-		template, err := db.GetTemplate(templateID)
+		taskID := vars["id"]
+		task, err := db.GetTask(taskID)
 		if err != nil {
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
-		jsonData, err := json.MarshalIndent(template, "", "\t")
-		if err != nil {
-			common.HandleError(rw, http.StatusInternalServerError, err)
-			return
-		}
-
-		rw.Write(jsonData)
-	})
-}
-
-func ListTemplate() http.Handler {
-	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		templates, err := db.ListTemplate()
-		if err != nil {
-			common.HandleError(rw, http.StatusInternalServerError, err)
-			return
-		}
-
-		jsonData, err := json.MarshalIndent(templates, "", "\t")
+		jsonData, err := json.MarshalIndent(task, "", "\t")
 		if err != nil {
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
@@ -49,23 +31,53 @@ func ListTemplate() http.Handler {
 	})
 }
 
-func CreateTemplate() http.Handler {
+func ListTask() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		template := apis.NewTemplate()
+		tasks, err := db.ListTask()
+		if err != nil {
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
+
+		jsonData, err := json.MarshalIndent(tasks, "", "\t")
+		if err != nil {
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
+
+		rw.Write(jsonData)
+	})
+}
+
+func CreateTask() http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		task := apis.NewTask()
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
-		err = json.Unmarshal(body, template)
+		err = json.Unmarshal(body, task)
 		if err != nil {
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
-		template.ID = common.GetUUID()
-		err = db.CreateTemplate(template)
+		task.ID = common.GetUUID()
+		task.State = "计划中"
+		if task.TemplateID == "" {
+			rw.Write([]byte("该计划没有对应的模版"))
+			return
+		}
+
+		err = db.CreateTask(task)
+		if err != nil {
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
+
+		err = schedule.AddSchedule(task)
 		if err != nil {
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
@@ -75,49 +87,34 @@ func CreateTemplate() http.Handler {
 	})
 }
 
-func UpdateTemplate() http.Handler {
-	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		template := apis.NewTemplate()
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			common.HandleError(rw, http.StatusInternalServerError, err)
-			return
-		}
-
-		err = json.Unmarshal(body, template)
-		if err != nil {
-			common.HandleError(rw, http.StatusInternalServerError, err)
-			return
-		}
-
-		err = db.UpdateTemplate(template)
-		if err != nil {
-			common.HandleError(rw, http.StatusInternalServerError, err)
-			return
-		}
-
-		rw.Write([]byte("更新完成"))
-	})
-}
-
-func DeleteTemplate() http.Handler {
+func DeleteTask() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
-		templateID := vars["id"]
-		tasks, err := db.ListTask()
+		taskID := vars["id"]
+		task, err := db.GetTask(taskID)
 		if err != nil {
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
-		for _, t := range tasks {
-			if t.TemplateID == templateID {
-				rw.Write([]byte(fmt.Sprintf("该通知在被巡检任务 %s 使用无法删除", t.Name)))
-				return
-			}
+		if task.State == "巡检中" {
+			rw.Write([]byte("巡检中的计划不能删除"))
+			return
 		}
 
-		err = db.DeleteTemplate(templateID)
+		err = schedule.RemoveSchedule(task)
+		if err != nil {
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
+
+		err = db.Deletetask(task.ID)
+		if err != nil {
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
+
+		err = db.DeleteReport(task.ReportID)
 		if err != nil {
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return

@@ -16,12 +16,14 @@ var (
 	MySQLPort     = os.Getenv("MY_SQL_PORT")
 	MySQLDB       = os.Getenv("MY_SQL_DB")
 
-	SQLiteName = "sqlite.db"
+	SQLiteName          = "sqlite.db"
+	AgentName           = "inspection-agent"
+	AgentScriptName     = "inspection-agent-sh"
+	InspectionNamespace = "cattle-inspection-system"
 
 	PrintWaitSecond = os.Getenv("PRINT_WAIT_SECOND")
 
-	LocalCluster        = "local"
-	InspectionNamespace = "cattle-inspection-system"
+	LocalCluster = "local"
 
 	//WorkDir = "/Users/chenjiandao/jiandao/inspection-server/opt/"
 	WorkDir = "/opt/"

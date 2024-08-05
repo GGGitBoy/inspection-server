@@ -28,8 +28,8 @@ type RuleGroup struct {
 	Name string `json:"name"`
 	// required: true
 	File string `json:"file"`
-	// In order to preserve rule ordering, while exposing type (alerting or recording)
-	// specific properties, both alerting and recording rules are exposed in the
+	// In order to preserve rule ordering, while exposing type (alerting or tasking)
+	// specific properties, both alerting and tasking rules are exposed in the
 	// same array.
 	// required: true
 	Rules  []AlertingRule   `json:"rules"`
@@ -206,7 +206,7 @@ func GetAlerting() (*Alerting, error) {
 	return alerting, nil
 }
 
-func GetGrafana() http.Handler {
+func GetGrafanaAlerting() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		alerting, err := GetAlerting()
 		if err != nil {

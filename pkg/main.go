@@ -36,7 +36,7 @@ func main() {
             report_time TEXT,
             data TEXT
         );`,
-		`CREATE TABLE IF NOT EXISTS plan (
+		`CREATE TABLE IF NOT EXISTS task (
             id VARCHAR(255) NOT NULL PRIMARY KEY,
             name TEXT,
             timer TEXT,
@@ -46,7 +46,7 @@ func main() {
             template_id TEXT,
             notify_id TEXT
         );`,
-		`CREATE TABLE IF NOT EXISTS record (
+		`CREATE TABLE IF NOT EXISTS task (
             id VARCHAR(255) NOT NULL PRIMARY KEY,
             name TEXT,
             start_time TEXT,

@@ -29,26 +29,6 @@ var (
 	success = "success"
 )
 
-//func GetGlobal(report *apis.Report) error {
-//	report.Global.Warnings = []apis.Warning{
-//		{Title: "红色警告", Message: "红色：影响 rancher 或者 集群运行的", Type: 3},
-//		{Title: "黄色警告", Message: "黄色：不影响 rancher 或者 集群运行的，但是有风险的", Type: 2},
-//		{Title: "灰色警告", Message: "灰色：没有太大风险的，不过最好也可以处理的", Type: 1},
-//	}
-//
-//	var rating int
-//	for _, w := range report.Global.Warnings {
-//		if w.Type > rating {
-//			rating = w.Type
-//		}
-//	}
-//
-//	report.Global.ReportTime = time.Now().Format(time.DateTime)
-//	report.Global.Rating = rating
-//
-//	return nil
-//}
-
 func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node, []*apis.Inspection, error) {
 	nodeNodeArray := apis.NewNodes()
 	nodeInspections := apis.NewInspections()

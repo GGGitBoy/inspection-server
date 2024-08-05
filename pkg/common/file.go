@@ -39,3 +39,15 @@ func WriteFile(path string, data []byte) error {
 
 	return nil
 }
+
+func FileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+
+	return false
+}

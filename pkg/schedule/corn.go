@@ -3,41 +3,65 @@ package schedule
 import (
 	"fmt"
 	"inspection-server/pkg/apis"
+	"inspection-server/pkg/common"
+	"inspection-server/pkg/db"
+	"time"
 )
 
-func AddCornPlan(plan *apis.Plan) error {
+func AddCorntask(task *apis.Task) error {
 	TaskMutex.Lock()
 	defer TaskMutex.Unlock()
 
-	entryID, err := CronClient.AddFunc(plan.Cron, func() {
-		go ExecuteTask(plan)
-		fmt.Printf("Executing schedule: %+v\n", plan)
+	entryID, err := CronClient.AddFunc(task.Cron, func() {
+		now := time.Now().Format(time.DateTime)
+		newTask := &apis.Task{
+			ID:         common.GetUUID(),
+			Name:       task.Name + now,
+			StartTime:  now,
+			EndTime:    "",
+			Cron:       task.Cron,
+			State:      "巡检中",
+			Rating:     "",
+			ReportID:   "",
+			TemplateID: task.TemplateID,
+			NotifyID:   task.NotifyID,
+			TaskID:     task.ID,
+			Mode:       task.Mode,
+		}
+
+		err := db.CreateTask(newTask)
+		if err != nil {
+			fmt.Errorf("Scheduled schedule %s to execute at %s\n", newTask.ID, newTask.Cron)
+		}
+
+		go ExecuteTask(newTask)
+		fmt.Printf("Executing schedule: %+v\n", newTask)
 	})
 	if err != nil {
 		return fmt.Errorf("Error adding cron job: %v\n", err)
 	}
-	TaskMap[plan.ID] = &Schedule{
+	TaskMap[task.ID] = &Schedule{
 		Cron: entryID,
 	}
 
-	fmt.Printf("Scheduled schedule %s to execute at %s\n", plan.ID, plan.Cron)
+	fmt.Printf("Scheduled schedule %s to execute at %s\n", task.ID, task.Cron)
 
 	return nil
 }
 
-func RemoveCornPlan(planID string) error {
+func RemoveCorntask(taskID string) error {
 	TaskMutex.Lock()
 	defer TaskMutex.Unlock()
 
-	if s, exists := TaskMap[planID]; exists {
+	if s, exists := TaskMap[taskID]; exists {
 		CronClient.Remove(s.Cron)
-		delete(TaskMap, planID)
-		fmt.Printf("Deleted scheduled schedule %s\n", planID)
+		delete(TaskMap, taskID)
+		fmt.Printf("Deleted scheduled schedule %s\n", taskID)
 	} else {
-		fmt.Printf("No scheduled schedule found with ID %s\n", planID)
+		fmt.Printf("No scheduled schedule found with ID %s\n", taskID)
 	}
 
-	fmt.Printf("Removed schedule: %+v\n", planID)
+	fmt.Printf("Removed schedule: %+v\n", taskID)
 
 	return nil
 }

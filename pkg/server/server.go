@@ -18,14 +18,10 @@ func Start() http.Handler {
 	router.Methods(http.MethodGet).Path("/v1/reports/get/{id}").Handler(api.GetReport())
 	router.Methods(http.MethodPost).Path("/v1/reports/print").Handler(api.PrintReport())
 
-	router.Methods(http.MethodGet).Path("/v1/plans/get/{id}").Handler(api.GetPlan())
-	router.Methods(http.MethodGet).Path("/v1/plans/list").Handler(api.ListPlan())
-	router.Methods(http.MethodPost).Path("/v1/plans/create").Handler(api.CreatePlan())
-	router.Methods(http.MethodDelete).Path("/v1/plans/delete/{id}").Handler(api.DeletePlan())
-
-	router.Methods(http.MethodGet).Path("/v1/records/get/{id}").Handler(api.GetRecord())
-	router.Methods(http.MethodGet).Path("/v1/records/list").Handler(api.ListRecord())
-	router.Methods(http.MethodDelete).Path("/v1/records/delete/{id}").Handler(api.DeleteRecord())
+	router.Methods(http.MethodGet).Path("/v1/tasks/get/{id}").Handler(api.GetTask())
+	router.Methods(http.MethodGet).Path("/v1/tasks/list").Handler(api.ListTask())
+	router.Methods(http.MethodPost).Path("/v1/tasks/create").Handler(api.CreateTask())
+	router.Methods(http.MethodDelete).Path("/v1/tasks/delete/{id}").Handler(api.DeleteTask())
 
 	router.Methods(http.MethodGet).Path("/v1/templates/get/{id}").Handler(api.GetTemplate())
 	router.Methods(http.MethodGet).Path("/v1/templates/list").Handler(api.ListTemplate())
@@ -46,7 +42,8 @@ func Start() http.Handler {
 	router.Methods(http.MethodGet).Path("/v1/agent/list").Handler(api.ListAgent())
 	router.Methods(http.MethodDelete).Path("/v1/agent/delete/{id}").Handler(api.DeleteAgent())
 
-	router.Methods(http.MethodGet).Path("/v1/grafana").Handler(core.GetGrafana())
+	router.Methods(http.MethodGet).Path("/v1/grafana/get").Handler(api.GetGrafanaClusterIP())
+	router.Methods(http.MethodGet).Path("/v1/grafana/alerting/get").Handler(core.GetGrafanaAlerting())
 
 	return router
 }
