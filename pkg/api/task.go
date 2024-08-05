@@ -108,7 +108,7 @@ func DeleteTask() http.Handler {
 			return
 		}
 
-		err = db.Deletetask(task.ID)
+		err = db.DeleteTask(task.ID)
 		if err != nil {
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return

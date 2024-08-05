@@ -121,7 +121,7 @@ func UpdateTask(task *apis.Task) error {
 	}
 	defer DB.Close()
 
-	_, err = DB.Exec("UPDATE task SET name = ?, start_time = ?, end_time = ?, cron = ?, state = ?, rating = ?, report_id = ?, template_id = ?, notify_id = ?, task_id = ?, mode = ?, err_message = ?  WHERE id = ?", task.Name, task.StartTime, task.EndTime, task.Cron, task.State, task.Rating, task.ReportID, task.TemplateID, task.NotifyID, task.TaskID, task.Mode, task.ID, task.ErrMessage)
+	_, err = DB.Exec("UPDATE task SET name = ?, start_time = ?, end_time = ?, cron = ?, state = ?, rating = ?, report_id = ?, template_id = ?, notify_id = ?, task_id = ?, mode = ?, err_message = ?  WHERE id = ?", task.Name, task.StartTime, task.EndTime, task.Cron, task.State, task.Rating, task.ReportID, task.TemplateID, task.NotifyID, task.TaskID, task.Mode, task.ErrMessage, task.ID)
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func UpdateTask(task *apis.Task) error {
 	return nil
 }
 
-func Deletetask(ID string) error {
+func DeleteTask(ID string) error {
 	DB, err := GetDB()
 	if err != nil {
 		return err
