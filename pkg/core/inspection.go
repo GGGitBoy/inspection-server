@@ -15,7 +15,9 @@ func Inspection(task *apis.Task) (error, strings.Builder) {
 	var errMessage strings.Builder
 
 	task.State = "巡检中"
-	err := db.Updatetask(task)
+	fmt.Println(task.ID)
+	fmt.Println(task.State)
+	err := db.UpdateTask(task)
 	if err != nil {
 		return err, errMessage
 	}
@@ -209,7 +211,7 @@ func Inspection(task *apis.Task) (error, strings.Builder) {
 	task.ReportID = report.ID
 	task.State = "巡检完成"
 	task.ErrMessage = errMessage.String()
-	err = db.Updatetask(task)
+	err = db.UpdateTask(task)
 	if err != nil {
 		return err, errMessage
 	}

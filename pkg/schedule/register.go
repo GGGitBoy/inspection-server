@@ -43,10 +43,11 @@ func Register() error {
 
 func AddSchedule(task *apis.Task) error {
 	var err error
+	time.Sleep(2 * time.Second)
 	if task.Mode == "计划任务" {
-		err = AddTimetask(task)
+		err = AddTimeTask(task)
 	} else if task.Mode == "周期任务" {
-		err = AddCorntask(task)
+		err = AddCornTask(task)
 	}
 
 	for id, _ := range TaskMap {
@@ -88,7 +89,7 @@ func ExecuteTask(task *apis.Task) {
 		errMessage.WriteString(fmt.Sprintf("巡检过程中报错: %v\n", err))
 		task.State = "巡检失败"
 		task.ErrMessage = errMessage.String()
-		err = db.Updatetask(task)
+		err = db.UpdateTask(task)
 		if err != nil {
 			logrus.Errorf("update task ErrMessage error: %v\n", err)
 		}

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func AddCorntask(task *apis.Task) error {
+func AddCornTask(task *apis.Task) error {
 	TaskMutex.Lock()
 	defer TaskMutex.Unlock()
 

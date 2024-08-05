@@ -114,7 +114,7 @@ func CreateTask(task *apis.Task) error {
 	return nil
 }
 
-func Updatetask(task *apis.Task) error {
+func UpdateTask(task *apis.Task) error {
 	DB, err := GetDB()
 	if err != nil {
 		return err

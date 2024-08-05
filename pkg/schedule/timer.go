@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func AddTimetask(task *apis.Task) error {
+func AddTimeTask(task *apis.Task) error {
 	startTime, err := time.ParseInLocation(time.DateTime, task.StartTime, GetLoc())
 	if err != nil {
 		return fmt.Errorf("Error parsing start time for schedule %s: %v\n", task.ID, err)
