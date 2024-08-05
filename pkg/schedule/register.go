@@ -43,7 +43,6 @@ func Register() error {
 
 func AddSchedule(task *apis.Task) error {
 	var err error
-	time.Sleep(2 * time.Second)
 	if task.Mode == "计划任务" {
 		err = AddTimeTask(task)
 	} else if task.Mode == "周期任务" {

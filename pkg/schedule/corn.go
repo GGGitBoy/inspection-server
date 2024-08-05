@@ -16,7 +16,7 @@ func AddCornTask(task *apis.Task) error {
 		now := time.Now().Format(time.DateTime)
 		newTask := &apis.Task{
 			ID:         common.GetUUID(),
-			Name:       task.Name + now,
+			Name:       fmt.Sprintf("%s(%s)", task.Name, now),
 			StartTime:  now,
 			EndTime:    "",
 			Cron:       task.Cron,

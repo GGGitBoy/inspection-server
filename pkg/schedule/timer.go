@@ -15,6 +15,7 @@ func AddTimeTask(task *apis.Task) error {
 	duration := time.Until(startTime)
 	fmt.Printf("task %s will execute after %f minutes\n", task.ID, duration.Minutes())
 	if duration <= 0 {
+		task.StartTime = time.Now().Format(time.DateTime)
 		go ExecuteTask(task)
 		fmt.Printf("task %s 的 timer 是过去的时间\n", task.ID)
 		return nil
