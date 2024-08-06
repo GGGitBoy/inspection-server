@@ -16,7 +16,7 @@ func Start() http.Handler {
 	debugHandle(router)
 
 	router.Methods(http.MethodGet).Path("/v1/reports/get/{id}").Handler(api.GetReport())
-	router.Methods(http.MethodPost).Path("/v1/reports/print").Handler(api.PrintReport())
+	router.Methods(http.MethodGet).Path("/v1/reports/print/{id}").Handler(api.PrintReport())
 
 	router.Methods(http.MethodGet).Path("/v1/tasks/get/{id}").Handler(api.GetTask())
 	router.Methods(http.MethodGet).Path("/v1/tasks/list").Handler(api.ListTask())

@@ -35,19 +35,19 @@ func GetReport() http.Handler {
 
 func PrintReport() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		vars := mux.Vars(req)
+		reportID := vars["id"]
+		report, err := db.GetReport(reportID)
+		if err != nil {
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
+
+		url := "http://127.0.0.1/#/inspection/result-pdf-view/" + reportID
+
 		p := pdfPrint.NewPrint()
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			common.HandleError(rw, http.StatusInternalServerError, err)
-			return
-		}
-
-		err = json.Unmarshal(body, p)
-		if err != nil {
-			common.HandleError(rw, http.StatusInternalServerError, err)
-			return
-		}
-
+		p.URL = url
+		p.ReportTime = report.Global.ReportTime
 		err = pdfPrint.FullScreenshot(p)
 		if err != nil {
 			common.HandleError(rw, http.StatusInternalServerError, err)
