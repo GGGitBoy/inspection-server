@@ -69,23 +69,23 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 				//fmt.Println(float64(limitsCPU) / float64(allocatableCPU))
 				if float64(limitsCPU)/float64(allocatableCPU) > 0.8 {
 					//nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s limits CPU 超过 80%", pod.Spec.NodeName), fmt.Sprintf("limits CPU %d, allocatable CPU %d", limitsCPU, allocatableCPU), 2))
-					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s limits CPU 超过百分之 80", pod.Spec.NodeName), fmt.Sprintf(""), 2))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Limits CPU", pod.Spec.NodeName), fmt.Sprintf("节点 %s limits CPU 超过百分之 80", pod.Spec.NodeName), 2))
 				}
 
 				if float64(limitsMemory)/float64(allocatableMemory) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s limits Memory 超过百分之 80", pod.Spec.NodeName), fmt.Sprintf(""), 2))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Limits Memory", pod.Spec.NodeName), fmt.Sprintf("节点 %s limits Memory 超过百分之 80", pod.Spec.NodeName), 2))
 				}
 
 				if float64(requestsCPU)/float64(allocatableCPU) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s requests CPU 超过百分之 80", pod.Spec.NodeName), fmt.Sprintf(""), 2))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Requests CPU", pod.Spec.NodeName), fmt.Sprintf("节点 %s requests CPU 超过百分之 80", pod.Spec.NodeName), 2))
 				}
 
 				if float64(requestsMemory)/float64(allocatableMemory) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s requests Memory 超过百分之 80", pod.Spec.NodeName), fmt.Sprintf(""), 2))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Requests Memory", pod.Spec.NodeName), fmt.Sprintf("节点 %s requests Memory 超过百分之 80", pod.Spec.NodeName), 2))
 				}
 
 				if float64(requestsPods)/float64(allocatablePods) > 0.8 {
-					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s requests Pods 超过百分之 80", pod.Spec.NodeName), fmt.Sprintf(""), 2))
+					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Requests Pods", pod.Spec.NodeName), fmt.Sprintf("节点 %s requests Pods 超过百分之 80", pod.Spec.NodeName), 2))
 				}
 
 				var commands []string
@@ -108,7 +108,7 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 
 				for _, r := range results {
 					if r.Error != "" {
-						nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s: %s 警告", pod.Spec.NodeName, r.Description), fmt.Sprintf("%s 检查报错 %s", r.Description, r.Error), 2))
+						nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s (%s)", pod.Spec.NodeName, r.Description), fmt.Sprintf("%s", r.Error), 2))
 					}
 				}
 
