@@ -70,7 +70,11 @@ func PrintReport() http.Handler {
 		rw.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(common.GetReportFileName(p.ReportTime)))
 		rw.Header().Set("Content-Type", "application/octet-stream")
 		rw.Header().Set("Content-Length", fmt.Sprint(fileInfo.Size()))
-		io.Copy(rw, file)
+		_, err = io.Copy(rw, file)
+		if err != nil {
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
 
 		rw.Write([]byte("打印成功"))
 	})

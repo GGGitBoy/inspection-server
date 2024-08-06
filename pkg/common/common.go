@@ -43,5 +43,5 @@ var (
 )
 
 func GetReportFileName(time string) string {
-	return fmt.Sprintf("巡检报告(%s).pdf", time)
+	return fmt.Sprintf("Report(%s).pdf", time)
 }
