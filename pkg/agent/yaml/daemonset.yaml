@@ -27,6 +27,10 @@ spec:
           - mountPath: /var/run/docker.sock
             name: docker-socket
 {{- end }}
+{{- if .Values.SetContainerd }}
+          - mountPath: /var/run/containerd/containerd.sock
+            name: containerd-socket
+{{- end }}
           - mountPath: /opt/inspection
             name: inspection-agent-sh
       dnsPolicy: ClusterFirst
@@ -44,6 +48,12 @@ spec:
           path: /var/run/docker.sock
           type: ""
         name: docker-socket
+{{- end }}
+{{- if .Values.SetContainerd }}
+      - hostPath:
+          path: /var/run/{{ .Values.Provider }}/containerd/containerd.sock
+          type: ""
+        name: containerd-socket
 {{- end }}
       - configMap:
           defaultMode: 448

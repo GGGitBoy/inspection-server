@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
@@ -27,7 +28,78 @@ import (
 var (
 	warning = "warning"
 	success = "success"
+
+	Commands = []*apis.CommandConfig{
+		{
+			Description: "API Server Ready Check",
+			Command:     "kubectl get --raw='/readyz'",
+		},
+		{
+			Description: "API Server Live Check",
+			Command:     "kubectl get --raw='/livez'",
+		},
+		{
+			Description: "ETCD Ready Check",
+			Command:     "kubectl get --raw='/readyz/etcd'",
+		},
+		{
+			Description: "ETCD Live Check",
+			Command:     "kubectl get --raw='/livez/etcd'",
+		},
+	}
 )
+
+func GetHealthCheck(client *apis.Client, clusterName string) (*apis.HealthCheck, []*apis.Inspection, error) {
+	healthCheck := apis.NewHealthCheck()
+	coreInspections := apis.NewInspections()
+
+	set := labels.Set(map[string]string{"name": "inspection-agent"})
+	podList, err := client.Clientset.CoreV1().Pods(common.InspectionNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: set.String()})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(podList.Items) > 0 {
+		var commands []string
+		for _, c := range Commands {
+			commands = append(commands, c.Description+": "+c.Command)
+		}
+
+		command := "/opt/inspection/inspection.sh"
+		stdout, stderr, err := ExecToPodThroughAPI(client.Clientset, client.Config, command, commands, podList.Items[0].Namespace, podList.Items[0].Name, "inspection-agent-container")
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if stderr != "" {
+			return nil, nil, errors.New(stderr)
+		}
+
+		var results []apis.CommandCheckResult
+		err = json.Unmarshal([]byte(stdout), &results)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		for _, r := range results {
+			if r.Error != "" {
+				coreInspections = append(coreInspections, apis.NewInspection(fmt.Sprintf("cluster %s (%s) failed", clusterName, r.Description), fmt.Sprintf("%s", r.Error), 2))
+			}
+
+			if r.Description == "API Server Ready Check" {
+				healthCheck.APIServerReady = &r
+			} else if r.Description == "API Server Live Check" {
+				healthCheck.APIServerLive = &r
+			} else if r.Description == "ETCD Ready Check" {
+				healthCheck.EtcdReady = &r
+			} else if r.Description == "ETCD Live Check" {
+				healthCheck.EtcdLive = &r
+			}
+		}
+	}
+
+	return healthCheck, coreInspections, nil
+}
 
 func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node, []*apis.Inspection, error) {
 	nodeNodeArray := apis.NewNodes()
@@ -59,14 +131,6 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 				allocatableMemory, _ := node.Status.Allocatable.Memory().AsInt64()
 				allocatablePods, _ := node.Status.Allocatable.Pods().AsInt64()
 
-				//fmt.Println(podLimits)
-				//fmt.Println(limitsCPU)
-				//fmt.Println(limitsMemory)
-				//fmt.Println(requestsCPU)
-				//fmt.Println(requestsMemory)
-				//fmt.Println(requestsPods)
-				//fmt.Println("limitsCPU:")
-				//fmt.Println(float64(limitsCPU) / float64(allocatableCPU))
 				if float64(limitsCPU)/float64(allocatableCPU) > 0.8 {
 					//nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s limits CPU 超过 80%", pod.Spec.NodeName), fmt.Sprintf("limits CPU %d, allocatable CPU %d", limitsCPU, allocatableCPU), 2))
 					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Limits CPU", pod.Spec.NodeName), fmt.Sprintf("节点 %s limits CPU 超过百分之 80", pod.Spec.NodeName), 2))

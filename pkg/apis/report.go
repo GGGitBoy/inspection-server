@@ -13,7 +13,15 @@ type Global struct {
 }
 
 type ClusterCore struct {
+	HealthCheck *HealthCheck  `json:"health_check"`
 	Inspections []*Inspection `json:"inspections"`
+}
+
+type HealthCheck struct {
+	APIServerReady *CommandCheckResult `json:"api_server_ready"`
+	APIServerLive  *CommandCheckResult `json:"api_server_live"`
+	EtcdReady      *CommandCheckResult `json:"etcd_ready"`
+	EtcdLive       *CommandCheckResult `json:"etcd_live"`
 }
 
 type ClusterNode struct {
@@ -182,6 +190,10 @@ func NewPods() []*Pod {
 
 func NewNodes() []*Node {
 	return []*Node{}
+}
+
+func NewHealthCheck() *HealthCheck {
+	return &HealthCheck{}
 }
 
 func NewWorkload() *Workload {

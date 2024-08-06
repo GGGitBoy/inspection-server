@@ -56,6 +56,12 @@ func Inspection(task *apis.Task) (error, strings.Builder) {
 				nodeInspections := apis.NewInspections()
 				resourceInspections := apis.NewInspections()
 
+				healthCheck, coreInspectionArray, err := GetHealthCheck(client, k.ClusterName)
+				if err != nil {
+					errMessage.WriteString(fmt.Sprintf("获取集群 %s API Server 相关巡检信息时失败: %v\n", clusterID, err))
+				}
+				coreInspections = append(coreInspections, coreInspectionArray...)
+
 				NodeNodeArray, nodeInspectionArray, err := GetNodes(client, k.ClusterNodeConfig.NodeConfig)
 				if err != nil {
 					errMessage.WriteString(fmt.Sprintf("获取集群 %s 节点相关巡检信息时失败: %v\n", clusterID, err))
@@ -98,6 +104,7 @@ func Inspection(task *apis.Task) (error, strings.Builder) {
 					resourceInspections = append(resourceInspections, resourceInspectionArray...)
 				}
 
+				clusterCore.HealthCheck = healthCheck
 				clusterNode.Nodes = NodeNodeArray
 				clusterResource.Workloads = ResourceWorkloadArray
 

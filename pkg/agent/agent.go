@@ -3,6 +3,8 @@ package agent
 import (
 	"bytes"
 	"context"
+	detector "github.com/rancher/kubernetes-provider-detector"
+	detectorProviders "github.com/rancher/kubernetes-provider-detector/providers"
 	"inspection-server/pkg/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	applyappsv1 "k8s.io/client-go/applyconfigurations/apps/v1"
@@ -158,6 +160,20 @@ func ApplyConfigMap(clientset *kubernetes.Clientset) error {
 }
 
 func ApplyDaemonSet(clientset *kubernetes.Clientset) error {
+	provider, err := detector.DetectProvider(context.TODO(), clientset)
+	if err != nil {
+		return err
+	}
+
+	var setDocker, setContainerd bool
+	if provider == detectorProviders.RKE {
+		setDocker = true
+	} else if provider == detectorProviders.RKE2 {
+		setContainerd = true
+	} else if provider == detectorProviders.K3s {
+		setContainerd = true
+	}
+
 	tmpl, err := template.ParseFiles(common.AgentYamlPath + "daemonset.yaml")
 	if err != nil {
 		return err
@@ -166,7 +182,9 @@ func ApplyDaemonSet(clientset *kubernetes.Clientset) error {
 	var rendered bytes.Buffer
 	err = tmpl.Execute(&rendered, map[string]interface{}{
 		"Values": Values{
-			SetDocker: true, // or false based on your requirement
+			SetDocker:     setDocker,
+			SetContainerd: setContainerd,
+			Provider:      provider,
 		},
 	})
 	if err != nil {
@@ -189,5 +207,7 @@ func ApplyDaemonSet(clientset *kubernetes.Clientset) error {
 
 // Values represents the values to be passed to the template
 type Values struct {
-	SetDocker bool
+	SetDocker     bool
+	SetContainerd bool
+	Provider      string
 }

@@ -164,51 +164,81 @@ func Register() error {
 		}
 
 		var nodeConfigs []*apis.NodeConfig
-		var masterNames []string
+		var workerNames, otherNodeNames []string
 		for _, n := range nodeList.Items {
-			isWorker, ok := n.Labels["node-role.kubernetes.io/master"]
+			isWorker, ok := n.Labels["node-role.kubernetes.io/worker"]
 			if ok && isWorker == "true" {
-				masterNames = append(masterNames, n.GetName())
+				workerNames = append(workerNames, n.GetName())
+				continue
 			}
+
+			isMaster, ok := n.Labels["node-role.kubernetes.io/master"]
+			if ok && isMaster == "true" {
+				workerNames = append(workerNames, n.GetName())
+				continue
+			}
+
+			otherNodeNames = append(otherNodeNames, n.GetName())
 		}
 
-		if len(masterNames) > 0 {
-			nodeConfigs = append(nodeConfigs, &apis.NodeConfig{
-				Names: masterNames,
-				Commands: []*apis.CommandConfig{
-					{
-						Description: "API Servedr Ready Check",
-						Command:     "kubectl get --raw='/readyz'",
-					},
-					{
-						Description: "API Server Live Check",
-						Command:     "kubectl get --raw='/livez'",
-					},
-					{
-						Description: "ETCD Ready Check",
-						Command:     "kubectl get --raw='/readyz/etcd'",
-					},
-					{
-						Description: "ETCD Live Check",
-						Command:     "kubectl get --raw='/livez/etcd'",
-					},
-					{
-						Description: "Kubelet Health Check",
-						Command:     "curl -sS http://localhost:10248/healthz",
-					},
-					{
-						Description: "KubeProxy Health Check",
-						Command:     "curl -sS http://localhost:10256/healthz > /dev/null 2>&1 && echo ok || { curl -sS http://localhost:10256/healthz; }",
-					},
-					{
-						Description: "Containerd Health Check",
-						Command:     "crictl pods > /dev/null 2>&1 && echo ok || { crictl pods; }",
-					},
-					{
-						Description: "Docker Health Check",
-						Command:     "docker ps > /dev/null 2>&1 && echo ok || { docker ps; }",
-					},
+		if len(workerNames) > 0 {
+			commands := []*apis.CommandConfig{
+				{
+					Description: "Kubelet Health Check",
+					Command:     "curl -sS http://localhost:10248/healthz",
 				},
+				{
+					Description: "KubeProxy Health Check",
+					Command:     "curl -sS http://localhost:10256/healthz > /dev/null 2>&1 && echo ok || { curl -sS http://localhost:10256/healthz; }",
+				},
+			}
+
+			if provider == detectorProviders.RKE {
+				commands = append(commands, &apis.CommandConfig{
+					Description: "Docker Health Check",
+					Command:     "docker ps > /dev/null 2>&1 && echo ok || { docker ps; }",
+				})
+			} else if provider == detectorProviders.RKE2 {
+				commands = append(commands, &apis.CommandConfig{
+					Description: "Containerd Health Check",
+					Command:     "crictl pods > /dev/null 2>&1 && echo ok || { crictl pods; }",
+				})
+			} else if provider == detectorProviders.K3s {
+				commands = append(commands, &apis.CommandConfig{
+					Description: "Containerd Health Check",
+					Command:     "crictl pods > /dev/null 2>&1 && echo ok || { crictl pods; }",
+				})
+			}
+
+			nodeConfigs = append(nodeConfigs, &apis.NodeConfig{
+				Names:    workerNames,
+				Commands: commands,
+			})
+		}
+
+		if len(otherNodeNames) > 0 {
+			var commands []*apis.CommandConfig
+
+			if provider == detectorProviders.RKE {
+				commands = append(commands, &apis.CommandConfig{
+					Description: "Docker Health Check",
+					Command:     "docker ps > /dev/null 2>&1 && echo ok || { docker ps; }",
+				})
+			} else if provider == detectorProviders.RKE2 {
+				commands = append(commands, &apis.CommandConfig{
+					Description: "Containerd Health Check",
+					Command:     "crictl pods > /dev/null 2>&1 && echo ok || { crictl pods; }",
+				})
+			} else if provider == detectorProviders.K3s {
+				commands = append(commands, &apis.CommandConfig{
+					Description: "Containerd Health Check",
+					Command:     "crictl pods > /dev/null 2>&1 && echo ok || { crictl pods; }",
+				})
+			}
+
+			nodeConfigs = append(nodeConfigs, &apis.NodeConfig{
+				Names:    otherNodeNames,
+				Commands: commands,
 			})
 		}
 
