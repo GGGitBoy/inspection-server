@@ -194,7 +194,7 @@ func Inspection(task *apis.Task) (error, strings.Builder) {
 		}
 
 		p := pdfPrint.NewPrint()
-		p.URL = "http://127.0.0.1/#/inspection-task/result-pdf-view/" + report.ID
+		p.URL = "http://127.0.0.1/#/inspection/result-pdf-view/" + report.ID
 		p.ReportTime = report.Global.ReportTime
 		err = pdfPrint.FullScreenshot(p)
 		if err != nil {
