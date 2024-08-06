@@ -6,7 +6,6 @@ import (
 	"github.com/gorilla/mux"
 	"inspection-server/pkg/common"
 	"inspection-server/pkg/db"
-	pdfPrint "inspection-server/pkg/print"
 	"io"
 	"net/http"
 	"os"
@@ -43,18 +42,18 @@ func PrintReport() http.Handler {
 			return
 		}
 
-		url := "http://127.0.0.1/#/inspection/result-pdf-view/" + reportID
+		//url := "http://127.0.0.1/#/inspection/result-pdf-view/" + reportID
+		//
+		//p := pdfPrint.NewPrint()
+		//p.URL = url
+		//p.ReportTime = report.Global.ReportTime
+		//err = pdfPrint.FullScreenshot(p)
+		//if err != nil {
+		//	common.HandleError(rw, http.StatusInternalServerError, err)
+		//	return
+		//}
 
-		p := pdfPrint.NewPrint()
-		p.URL = url
-		p.ReportTime = report.Global.ReportTime
-		err = pdfPrint.FullScreenshot(p)
-		if err != nil {
-			common.HandleError(rw, http.StatusInternalServerError, err)
-			return
-		}
-
-		file, err := os.Open(common.PrintPDFPath + common.GetReportFileName(p.ReportTime))
+		file, err := os.Open(common.PrintPDFPath + common.GetReportFileName(report.Global.ReportTime))
 		if err != nil {
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
@@ -67,7 +66,7 @@ func PrintReport() http.Handler {
 			return
 		}
 
-		rw.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(common.GetReportFileName(p.ReportTime)))
+		rw.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(common.GetReportFileName(report.Global.ReportTime)))
 		rw.Header().Set("Content-Type", "application/octet-stream")
 		rw.Header().Set("Content-Length", fmt.Sprint(fileInfo.Size()))
 		_, err = io.Copy(rw, file)

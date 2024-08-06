@@ -187,16 +187,16 @@ func Inspection(task *apis.Task) (error, strings.Builder) {
 		sb.WriteString(fmt.Sprintf(`%s\n`, s))
 	}
 
+	p := pdfPrint.NewPrint()
+	p.URL = "http://127.0.0.1/#/inspection/result-pdf-view/" + report.ID
+	p.ReportTime = report.Global.ReportTime
+	err = pdfPrint.FullScreenshot(p)
+	if err != nil {
+		return err, errMessage
+	}
+
 	if task.NotifyID != "" {
 		notify, err := db.GetNotify(task.NotifyID)
-		if err != nil {
-			return err, errMessage
-		}
-
-		p := pdfPrint.NewPrint()
-		p.URL = "http://127.0.0.1/#/inspection/result-pdf-view/" + report.ID
-		p.ReportTime = report.Global.ReportTime
-		err = pdfPrint.FullScreenshot(p)
 		if err != nil {
 			return err, errMessage
 		}
