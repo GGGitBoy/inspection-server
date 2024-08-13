@@ -5,6 +5,7 @@ import (
 	"context"
 	detector "github.com/rancher/kubernetes-provider-detector"
 	detectorProviders "github.com/rancher/kubernetes-provider-detector/providers"
+	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	applyappsv1 "k8s.io/client-go/applyconfigurations/apps/v1"
@@ -17,7 +18,8 @@ import (
 	"text/template"
 )
 
-func SyncAgent() error {
+func Register() error {
+	logrus.Infof("register inspection agent\n")
 	localKubernetesClient, err := common.GetKubernetesClient(common.LocalCluster)
 	if err != nil {
 		return err
@@ -65,15 +67,6 @@ func CreateAgent(clientset *kubernetes.Clientset) error {
 	err = ApplyDaemonSet(clientset)
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func Register() error {
-	err := SyncAgent()
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	return nil
