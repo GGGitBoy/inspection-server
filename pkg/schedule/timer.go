@@ -4,20 +4,23 @@ import (
 	"fmt"
 	"inspection-server/pkg/apis"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 func AddTimeTask(task *apis.Task) error {
 	startTime, err := time.ParseInLocation(time.DateTime, task.StartTime, GetLoc())
 	if err != nil {
-		return fmt.Errorf("Error parsing start time for schedule %s: %v\n", task.ID, err)
+		logrus.Errorf("Error parsing start time for task %s: %v", task.ID, err)
+		return fmt.Errorf("error parsing start time for schedule %s: %v", task.ID, err)
 	}
 
 	duration := time.Until(startTime)
-	fmt.Printf("task %s will execute after %f minutes\n", task.ID, duration.Minutes())
+	logrus.Infof("Task %s will execute after %.2f minutes", task.ID, duration.Minutes())
 	if duration <= 0 {
 		task.StartTime = time.Now().Format(time.DateTime)
 		go ExecuteTask(task)
-		fmt.Printf("task %s 的 timer 是过去的时间\n", task.ID)
+		logrus.Warnf("Task %s is scheduled with a past time. Executing immediately.", task.ID)
 		return nil
 	}
 
@@ -25,13 +28,15 @@ func AddTimeTask(task *apis.Task) error {
 	defer TaskMutex.Unlock()
 
 	timer := time.AfterFunc(duration, func() {
+		logrus.Infof("Executing task %s", task.ID)
 		go ExecuteTask(task)
 	})
 
 	TaskMap[task.ID] = &Schedule{
 		Timer: timer,
 	}
-	fmt.Printf("Scheduled schedule %s to execute at %s\n", task.ID, task.StartTime)
+
+	logrus.Infof("Scheduled task %s to execute at %s", task.ID, task.StartTime)
 	return nil
 }
 
@@ -40,11 +45,13 @@ func RemoveTimetask(taskID string) error {
 	defer TaskMutex.Unlock()
 
 	if s, exists := TaskMap[taskID]; exists {
-		s.Timer.Stop()
+		if !s.Timer.Stop() {
+			logrus.Warnf("Timer for task %s has already executed or stopped", taskID)
+		}
 		delete(TaskMap, taskID)
-		fmt.Printf("Deleted scheduled schedule %s\n", taskID)
+		logrus.Infof("Deleted scheduled task %s", taskID)
 	} else {
-		fmt.Printf("No scheduled schedule found with ID %s\n", taskID)
+		logrus.Warnf("No scheduled task found with ID %s", taskID)
 	}
 
 	return nil

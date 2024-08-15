@@ -28,60 +28,27 @@ func FullScreenshot(print *Print) error {
 	time.Sleep(2 * time.Second)
 	if common.PrintWaitSecond != "" {
 		num, err := strconv.Atoi(common.PrintWaitSecond)
-		if err == nil {
+		if err != nil {
+			log.Printf("Invalid PrintWaitSecond value, using default: %v", err)
+		} else {
 			waitSecond = num
 		}
 	}
 
-	path, _ := launcher.LookPath()
+	path, ok := launcher.LookPath()
+	if !ok {
+		return fmt.Errorf("Failed to find browser path")
+	}
 	u := launcher.New().Bin(path).MustLaunch()
 	browser := rod.New().ControlURL(u).MustConnect()
 	defer browser.MustClose()
 
-	fmt.Println(time.Now().Format(time.DateTime))
+	log.Println("Starting page load")
 	page := browser.MustPage(print.URL)
 	page.MustWaitLoad()
 
-	//page.WaitElementsMoreThan()
-
-	//`(s, n) => document.querySelectorAll(s).length >= n`
-
 	time.Sleep(time.Duration(waitSecond) * time.Second)
 
-	// 等待条件并获取 allElements.length
-	aaa := page.MustEval(`() => {
-		const iframes = document.querySelectorAll('iframe');
-		let allElements = [];
-		iframes.forEach(iframe => {
-			try {
-				const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-				if (iframeDocument) {
-					const elements = iframeDocument.querySelectorAll(".css-kvzgb9-panel-content");
-					allElements = allElements.concat(Array.from(elements));
-				}
-			} catch (error) {
-				console.warn("Could not access iframe content due to cross-origin restrictions:", error);
-			}
-		});
-		return { length: allElements.length };
-	}`)
-
-	// 打印 allElements.length
-	fmt.Println(aaa.Get("length").Int())
-
-	//page.MustEval(`() => {
-	//	var totalWidth = 0;
-	//	var distance = 100;
-	//	var timer = setInterval(() => {
-	//		var scrollWidth = document.body.scrollWidth;
-	//		window.scrollBy(distance, 0);
-	//		totalWidth += distance;
-	//		if(totalWidth >= scrollWidth){
-	//			clearInterval(timer);
-	//		}
-	//	}, 100);
-	//}`)
-	fmt.Println(time.Now().Format(time.DateTime))
 	page.MustEval(`() => {
 		var totalHeight = 0;
 		var distance = 100;
@@ -97,85 +64,35 @@ func FullScreenshot(print *Print) error {
 
 	err := page.Wait(rod.Eval(`() => document.body.scrollHeight <= (window.scrollY + window.innerHeight)`))
 	if err != nil {
-		fmt.Println(err)
+		log.Printf("Error while waiting for page scroll completion: %v", err)
+		return err
 	}
-
-	page.MustWaitRequestIdle()
-	err = page.WaitElementsMoreThan(".iframe", 2)
-	//err = page.Wait(rod.Eval(`() => ({
-	//	return document.querySelectorAll(".iframe").length >= 3;
-	//})`))
-	if err != nil {
-		log.Fatalf("Failed to iframe: %v", err)
-	}
-	//
-	//err = page.Wait(rod.Eval(`() => {
-	//	const iframes = document.querySelectorAll(".iframe");
-	//	let allElements = [];
-	//	iframes.forEach(iframe => {
-	//		try {
-	//			const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-	//			if (iframeDocument) {
-	//				const elements = iframeDocument.querySelectorAll(".css-kvzgb9-panel-content");
-	//				allElements = allElements.concat(Array.from(elements));
-	//			}
-	//		} catch (error) {
-	//			console.warn("Could not access iframe content due to cross-origin restrictions:", error);
-	//			throw new Error("Accessing iframe content failed");
-	//		}
-	//	});
-	//	return allElements.length >= 44;
-	//}`))
-	//if err != nil {
-	//	log.Fatalf("Failed to evaluate JavaScript: %v", err)
-	//}
-
-	fmt.Println(time.Now().Format(time.DateTime))
-	//time.Sleep(20 * time.Second)
-
-	bbb := page.MustEval(`() => {
-		const iframes = document.querySelectorAll('iframe');
-		let allElements = [];
-		iframes.forEach(iframe => {
-			try {
-				const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-				if (iframeDocument) {
-					const elements = iframeDocument.querySelectorAll(".css-kvzgb9-panel-content");
-					allElements = allElements.concat(Array.from(elements));
-				}
-			} catch (error) {
-				console.warn("Could not access iframe content due to cross-origin restrictions:", error);
-			}
-		});
-		return { length: allElements.length };
-	}`)
-	fmt.Println(time.Now().Format(time.DateTime))
-	// 打印 allElements.length
-	fmt.Println(bbb.Get("length").Int())
 
 	metrics := page.MustEval(`() => ({
 		width: document.body.scrollWidth,
 		height: document.body.scrollHeight,
 	})`)
 
-	fmt.Println(metrics.Get("width").Int())
-	fmt.Println(metrics.Get("height").Int())
-	fmt.Println("=========")
+	log.Printf("Page dimensions: width=%d, height=%d", metrics.Get("width").Int(), metrics.Get("height").Int())
+
 	page.MustSetViewport(metrics.Get("width").Int(), metrics.Get("height").Int(), 1, false)
 
 	screenshot, err := page.Screenshot(false, nil)
 	if err != nil {
 		log.Fatalf("Failed to capture screenshot: %v", err)
+		return err
 	}
-	fmt.Println(time.Now().Format(time.DateTime))
+	log.Println("Screenshot captured successfully")
 
 	err = common.WriteFile(common.PrintShotPath, screenshot)
 	if err != nil {
+		log.Fatalf("Failed to save screenshot: %v", err)
 		return err
 	}
 
 	err = ToPrintPDF(print)
 	if err != nil {
+		log.Fatalf("Failed to generate PDF: %v", err)
 		return err
 	}
 
@@ -185,50 +102,44 @@ func FullScreenshot(print *Print) error {
 func ToPrintPDF(print *Print) error {
 	imgFile, err := os.Open(common.PrintShotPath)
 	if err != nil {
+		log.Fatalf("Failed to open screenshot file: %v", err)
 		return err
 	}
 	defer imgFile.Close()
 
-	// 解码图片
 	img, _, err := image.Decode(imgFile)
 	if err != nil {
+		log.Fatalf("Failed to decode image: %v", err)
 		return err
 	}
 
-	// 获取图片的大小（像素）
 	imgWidth := img.Bounds().Dx()
 	imgHeight := img.Bounds().Dy()
 
-	// A4页面的宽度（210mm）转换为点数（1 point = 1/72 inch, 1 inch = 25.4 mm）
-	pageWidth := 595.28 // 210mm in points
-
-	// 计算图片适应页面宽度的缩放比例
+	pageWidth := 595.28
 	scale := pageWidth / float64(imgWidth)
-
-	// 计算图片在页面上的实际高度
 	newHeight := float64(imgHeight) * scale
 
-	// 创建一个新的PDF文档
 	pdf := gopdf.GoPdf{}
 	rect := &gopdf.Rect{
 		W: pageWidth,
 		H: newHeight,
 	}
 	pdf.Start(gopdf.Config{PageSize: *rect})
-
 	pdf.AddPage()
 
-	// 将图片部分添加到当前页
 	err = pdf.Image(common.PrintShotPath, 0, 0, rect)
 	if err != nil {
+		log.Fatalf("Failed to add image to PDF: %v", err)
 		return err
 	}
 
-	// 保存PDF文档
 	err = pdf.WritePdf(common.PrintPDFPath + common.GetReportFileName(print.ReportTime))
 	if err != nil {
+		log.Fatalf("Failed to save PDF: %v", err)
 		return err
 	}
 
+	log.Println("PDF generated successfully")
 	return nil
 }

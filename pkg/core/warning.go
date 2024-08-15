@@ -114,10 +114,13 @@ func NewAlerting() *Alerting {
 }
 
 func GetAllGrafanaInspections() (map[string]*GrafanaInspection, error) {
+	log.Println("Starting to get all Grafana inspections")
+
 	allGrafanaInspection := NewAllGrafanaInspection()
 
 	alerting, err := GetAlerting()
 	if err != nil {
+		log.Printf("Error getting alerting data: %v", err)
 		return nil, err
 	}
 
@@ -128,16 +131,19 @@ func GetAllGrafanaInspections() (map[string]*GrafanaInspection, error) {
 					if alert.State == "Alerting" || alert.State == "pending" {
 						prometheusFrom, ok := alert.Labels["prometheus_from"]
 						if !ok {
+							log.Printf("Alert %s missing 'prometheus_from' label", rule.Name)
 							continue
 						}
 
 						alertname, ok := alert.Labels["alertname"]
 						if !ok {
+							log.Printf("Alert %s missing 'alertname' label", rule.Name)
 							continue
 						}
 
 						summary, ok := alert.Annotations["summary"]
 						if !ok {
+							log.Printf("Alert %s missing 'summary' annotation", rule.Name)
 							continue
 						}
 
@@ -150,6 +156,7 @@ func GetAllGrafanaInspections() (map[string]*GrafanaInspection, error) {
 						} else if group.Name == "inspection-node" {
 							instance, ok := alert.Labels["instance"]
 							if !ok {
+								log.Printf("Alert %s missing 'instance' label", rule.Name)
 								continue
 							}
 							result := strings.Split(instance, ":")[0]
@@ -164,14 +171,17 @@ func GetAllGrafanaInspections() (map[string]*GrafanaInspection, error) {
 		}
 	}
 
+	log.Println("Completed getting all Grafana inspections")
 	return allGrafanaInspection, nil
 }
 
 func GetAlerting() (*Alerting, error) {
 	url := common.ServerURL + "/api/v1/namespaces/cattle-global-monitoring/services/http:access-grafana:80/proxy/api/prometheus/grafana/api/v1/rules"
+	log.Printf("Fetching alerting data from URL: %s", url)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		log.Printf("Error creating request: %v", err)
 		return nil, err
 	}
 
@@ -184,24 +194,25 @@ func GetAlerting() (*Alerting, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Printf("Error executing request: %v", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		log.Printf("Error reading response body: %v", err)
 		return nil, err
 	}
 
-	fmt.Println(string(body))
+	log.Printf("Received alerting data: %s", string(body))
 
-	fmt.Println("aaa")
 	alerting := NewAlerting()
 	err = json.Unmarshal(body, alerting)
 	if err != nil {
+		log.Printf("Error unmarshalling alerting data: %v", err)
 		return nil, err
 	}
-	fmt.Println("bbbb")
 
 	return alerting, nil
 }
@@ -210,14 +221,22 @@ func GetGrafanaAlerting() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		alerting, err := GetAlerting()
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("Error getting alerting data: %v", err)
+			http.Error(rw, "Failed to get alerting data", http.StatusInternalServerError)
+			return
 		}
 
 		jsonData, err := json.MarshalIndent(alerting, "", "\t")
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("Error marshalling alerting data: %v", err)
+			http.Error(rw, "Failed to marshal alerting data", http.StatusInternalServerError)
+			return
 		}
 
-		rw.Write(jsonData)
+		rw.Header().Set("Content-Type", "application/json")
+		_, err = rw.Write(jsonData)
+		if err != nil {
+			log.Printf("Error writing response: %v", err)
+		}
 	})
 }

@@ -14,7 +14,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -49,24 +48,31 @@ func getAuthHeader() http.Header {
 	return authHeader
 }
 
+// GenerateKubeconfig retrieves kubeconfigs for all clusters and stores them.
 func GenerateKubeconfig(clients map[string]*apis.Client) error {
 	localKubernetesClien, err := GetKubernetesClient(LocalCluster)
 	if err != nil {
+		logrus.Errorf("Failed to get Kubernetes client for local cluster: %v", err)
 		return err
 	}
 
 	clusters, err := localKubernetesClien.DynamicClient.Resource(ClusterRes).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
+		logrus.Errorf("Failed to list clusters: %v", err)
 		return err
 	}
 
 	for _, c := range clusters.Items {
-		kubernetesClient, err := GetKubernetesClient(c.GetName())
+		clusterName := c.GetName()
+		logrus.Infof("Processing cluster: %s", clusterName)
+
+		kubernetesClient, err := GetKubernetesClient(clusterName)
 		if err != nil {
-			return err
+			logrus.Errorf("Failed to get Kubernetes client for cluster %s: %v", clusterName, err)
+			continue
 		}
 
-		clients[c.GetName()] = &apis.Client{
+		clients[clusterName] = &apis.Client{
 			DynamicClient: kubernetesClient.DynamicClient,
 			Clientset:     kubernetesClient.Clientset,
 			Config:        kubernetesClient.Config,
@@ -76,81 +82,104 @@ func GenerateKubeconfig(clients map[string]*apis.Client) error {
 	return nil
 }
 
+// GetKubernetesClient retrieves a Kubernetes client for a given cluster name.
 func GetKubernetesClient(name string) (*apis.Client, error) {
 	err := WriteKubeconfig(name)
 	if err != nil {
+		logrus.Errorf("Failed to write kubeconfig for cluster %s: %v", name, err)
 		return nil, err
 	}
 
 	kubernetesClient, err := GetClient(name)
 	if err != nil {
+		logrus.Errorf("Failed to get Kubernetes client for cluster %s: %v", name, err)
 		return nil, err
 	}
 
 	return kubernetesClient, nil
 }
 
+// WriteKubeconfig generates and writes a kubeconfig for a given cluster ID.
 func WriteKubeconfig(clusterID string) error {
-	if FileExists(WriteKubeconfigPath + clusterID) {
-		logrus.Infof("cluster %s kubeconfig already exists\n", clusterID)
+	kubeconfigPath := WriteKubeconfigPath + clusterID
+	if FileExists(kubeconfigPath) {
+		logrus.Infof("Cluster %s kubeconfig already exists at path: %s", clusterID, kubeconfigPath)
 		return nil
 	}
 
 	client := getClient()
-	req, err := http.NewRequest(http.MethodPost, ServerURL+"/v3/clusters/"+clusterID+"?action=generateKubeconfig", strings.NewReader(""))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/v3/clusters/%s?action=generateKubeconfig", ServerURL, clusterID), nil)
 	if err != nil {
+		logrus.Errorf("Failed to create HTTP request to generate kubeconfig for cluster %s: %v", clusterID, err)
 		return err
 	}
 	req.Header = getAuthHeader()
 
 	resp, err := client.Do(req)
 	if err != nil {
+		logrus.Errorf("Failed to execute HTTP request to generate kubeconfig for cluster %s: %v", clusterID, err)
 		return err
 	}
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			logrus.Errorf("Failed to close response body for cluster %s: %v", clusterID, cerr)
+		}
+	}()
 
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("GET %s expect 200 status but got %d", req.URL.String(), resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		errMsg := fmt.Sprintf("Expected status 200 for kubeconfig generation request for cluster %s, got %d", clusterID, resp.StatusCode)
+		logrus.Errorf(errMsg)
+		return fmt.Errorf(errMsg)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logrus.Errorf("Failed to read response body for cluster %s: %v", clusterID, err)
 		return err
 	}
-	defer resp.Body.Close()
 
 	var kubeConfig KubeConfig
 	err = json.Unmarshal(body, &kubeConfig)
 	if err != nil {
+		logrus.Errorf("Failed to unmarshal kubeconfig for cluster %s: %v", clusterID, err)
 		return err
 	}
 
-	err = WriteFile(WriteKubeconfigPath+clusterID, []byte(kubeConfig.Config))
+	err = WriteFile(kubeconfigPath, []byte(kubeConfig.Config))
 	if err != nil {
+		logrus.Errorf("Failed to write kubeconfig file for cluster %s: %v", clusterID, err)
 		return err
 	}
 
-	return err
+	logrus.Infof("Successfully wrote kubeconfig for cluster %s to path: %s", clusterID, kubeconfigPath)
+	return nil
 }
 
+// GetClient creates a Kubernetes client from a kubeconfig file.
 func GetClient(kubeconfigPath string) (*apis.Client, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", WriteKubeconfigPath+kubeconfigPath)
+	configPath := WriteKubeconfigPath + kubeconfigPath
+	config, err := clientcmd.BuildConfigFromFlags("", configPath)
 	if err != nil {
+		logrus.Errorf("Failed to build Kubernetes config from path %s: %v", configPath, err)
 		return nil, err
 	}
 
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
+		logrus.Errorf("Failed to create dynamic client from config: %v", err)
 		return nil, err
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
+		logrus.Errorf("Failed to create clientset from config: %v", err)
 		return nil, err
 	}
 
+	logrus.Infof("Successfully created Kubernetes client from path: %s", configPath)
 	return &apis.Client{
 		DynamicClient: dynamicClient,
 		Clientset:     clientset,
 		Config:        config,
-	}, err
+	}, nil
 }

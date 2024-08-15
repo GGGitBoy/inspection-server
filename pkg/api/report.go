@@ -10,25 +10,33 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/sirupsen/logrus"
 )
 
 func GetReport() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
 		reportID := vars["id"]
+
 		report, err := db.GetReport(reportID)
 		if err != nil {
+			logrus.Errorf("Failed to get report with ID %s: %v", reportID, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
 		jsonData, err := json.MarshalIndent(report, "", "\t")
 		if err != nil {
+			logrus.Errorf("Failed to marshal report with ID %s: %v", reportID, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
-		rw.Write(jsonData)
+		if _, err := rw.Write(jsonData); err != nil {
+			logrus.Errorf("Failed to write response for report with ID %s: %v", reportID, err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+		}
 	})
 }
 
@@ -36,45 +44,47 @@ func PrintReport() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
 		reportID := vars["id"]
+
 		report, err := db.GetReport(reportID)
 		if err != nil {
+			logrus.Errorf("Failed to get report with ID %s: %v", reportID, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
-		//url := "http://127.0.0.1/#/inspection/result-pdf-view/" + reportID
-		//
-		//p := pdfPrint.NewPrint()
-		//p.URL = url
-		//p.ReportTime = report.Global.ReportTime
-		//err = pdfPrint.FullScreenshot(p)
-		//if err != nil {
-		//	common.HandleError(rw, http.StatusInternalServerError, err)
-		//	return
-		//}
-
-		file, err := os.Open(common.PrintPDFPath + common.GetReportFileName(report.Global.ReportTime))
+		filePath := filepath.Join(common.PrintPDFPath, common.GetReportFileName(report.Global.ReportTime))
+		file, err := os.Open(filePath)
 		if err != nil {
+			logrus.Errorf("Failed to open file %s: %v", filePath, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				logrus.Warnf("Failed to close file %s: %v", filePath, err)
+			}
+		}()
 
 		fileInfo, err := file.Stat()
 		if err != nil {
+			logrus.Errorf("Failed to get file info for %s: %v", filePath, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
-		rw.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(common.GetReportFileName(report.Global.ReportTime)))
+		rw.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(filePath))
 		rw.Header().Set("Content-Type", "application/octet-stream")
 		rw.Header().Set("Content-Length", fmt.Sprint(fileInfo.Size()))
-		_, err = io.Copy(rw, file)
-		if err != nil {
+
+		if _, err := io.Copy(rw, file); err != nil {
+			logrus.Errorf("Failed to copy file %s to response: %v", filePath, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
-		rw.Write([]byte("打印成功"))
+		if _, err := rw.Write([]byte("打印成功")); err != nil {
+			logrus.Errorf("Failed to write success message for report %s: %v", reportID, err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+		}
 	})
 }

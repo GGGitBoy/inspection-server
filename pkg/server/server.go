@@ -1,12 +1,13 @@
 package server
 
 import (
-	"inspection-server/pkg/api"
-	"inspection-server/pkg/core"
 	"net/http"
 	"net/http/pprof"
 
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
+	"inspection-server/pkg/api"
+	"inspection-server/pkg/core"
 )
 
 func Start() http.Handler {
@@ -15,35 +16,35 @@ func Start() http.Handler {
 
 	debugHandle(router)
 
-	router.Methods(http.MethodGet).Path("/v1/reports/get/{id}").Handler(api.GetReport())
-	router.Methods(http.MethodGet).Path("/v1/reports/print/{id}").Handler(api.PrintReport())
+	router.Methods(http.MethodGet).Path("/v1/reports/get/{id}").Handler(logMiddleware(api.GetReport()))
+	router.Methods(http.MethodGet).Path("/v1/reports/print/{id}").Handler(logMiddleware(api.PrintReport()))
 
-	router.Methods(http.MethodGet).Path("/v1/tasks/get/{id}").Handler(api.GetTask())
-	router.Methods(http.MethodGet).Path("/v1/tasks/list").Handler(api.ListTask())
-	router.Methods(http.MethodPost).Path("/v1/tasks/create").Handler(api.CreateTask())
-	router.Methods(http.MethodDelete).Path("/v1/tasks/delete/{id}").Handler(api.DeleteTask())
+	router.Methods(http.MethodGet).Path("/v1/tasks/get/{id}").Handler(logMiddleware(api.GetTask()))
+	router.Methods(http.MethodGet).Path("/v1/tasks/list").Handler(logMiddleware(api.ListTask()))
+	router.Methods(http.MethodPost).Path("/v1/tasks/create").Handler(logMiddleware(api.CreateTask()))
+	router.Methods(http.MethodDelete).Path("/v1/tasks/delete/{id}").Handler(logMiddleware(api.DeleteTask()))
 
-	router.Methods(http.MethodGet).Path("/v1/templates/get/{id}").Handler(api.GetTemplate())
-	router.Methods(http.MethodGet).Path("/v1/templates/list").Handler(api.ListTemplate())
-	router.Methods(http.MethodPost).Path("/v1/templates/create").Handler(api.CreateTemplate())
-	router.Methods(http.MethodPut).Path("/v1/templates/update").Handler(api.UpdateTemplate())
-	router.Methods(http.MethodDelete).Path("/v1/templates/delete/{id}").Handler(api.DeleteTemplate())
+	router.Methods(http.MethodGet).Path("/v1/templates/get/{id}").Handler(logMiddleware(api.GetTemplate()))
+	router.Methods(http.MethodGet).Path("/v1/templates/list").Handler(logMiddleware(api.ListTemplate()))
+	router.Methods(http.MethodPost).Path("/v1/templates/create").Handler(logMiddleware(api.CreateTemplate()))
+	router.Methods(http.MethodPut).Path("/v1/templates/update").Handler(logMiddleware(api.UpdateTemplate()))
+	router.Methods(http.MethodDelete).Path("/v1/templates/delete/{id}").Handler(logMiddleware(api.DeleteTemplate()))
 
-	router.Methods(http.MethodGet).Path("/v1/notify/get/{id}").Handler(api.GetNotify())
-	router.Methods(http.MethodGet).Path("/v1/notify/list").Handler(api.ListNotify())
-	router.Methods(http.MethodPost).Path("/v1/notify/create").Handler(api.CreateNotify())
-	router.Methods(http.MethodPut).Path("/v1/notify/update").Handler(api.UpdateNotify())
-	router.Methods(http.MethodDelete).Path("/v1/notify/delete/{id}").Handler(api.DeleteNotify())
-	router.Methods(http.MethodPost).Path("/v1/notify/test").Handler(api.TestNotify())
+	router.Methods(http.MethodGet).Path("/v1/notify/get/{id}").Handler(logMiddleware(api.GetNotify()))
+	router.Methods(http.MethodGet).Path("/v1/notify/list").Handler(logMiddleware(api.ListNotify()))
+	router.Methods(http.MethodPost).Path("/v1/notify/create").Handler(logMiddleware(api.CreateNotify()))
+	router.Methods(http.MethodPut).Path("/v1/notify/update").Handler(logMiddleware(api.UpdateNotify()))
+	router.Methods(http.MethodDelete).Path("/v1/notify/delete/{id}").Handler(logMiddleware(api.DeleteNotify()))
+	router.Methods(http.MethodPost).Path("/v1/notify/test").Handler(logMiddleware(api.TestNotify()))
 
-	router.Methods(http.MethodGet).Path("/v1/clusters/list").Handler(api.GetClusters())
-	router.Methods(http.MethodGet).Path("/v1/clusters/{id}/resource/list").Handler(api.GetResource())
+	router.Methods(http.MethodGet).Path("/v1/clusters/list").Handler(logMiddleware(api.GetClusters()))
+	router.Methods(http.MethodGet).Path("/v1/clusters/{id}/resource/list").Handler(logMiddleware(api.GetResource()))
 
-	router.Methods(http.MethodGet).Path("/v1/agent/list").Handler(api.ListAgent())
-	router.Methods(http.MethodDelete).Path("/v1/agent/delete/{id}").Handler(api.DeleteAgent())
+	router.Methods(http.MethodGet).Path("/v1/agent/list").Handler(logMiddleware(api.ListAgent()))
+	router.Methods(http.MethodDelete).Path("/v1/agent/delete/{id}").Handler(logMiddleware(api.DeleteAgent()))
 
-	router.Methods(http.MethodGet).Path("/v1/grafana/get").Handler(api.GetGrafanaClusterIP())
-	router.Methods(http.MethodGet).Path("/v1/grafana/alerting/get").Handler(core.GetGrafanaAlerting())
+	router.Methods(http.MethodGet).Path("/v1/grafana/get").Handler(logMiddleware(api.GetGrafanaClusterIP()))
+	router.Methods(http.MethodGet).Path("/v1/grafana/alerting/get").Handler(logMiddleware(core.GetGrafanaAlerting()))
 
 	return router
 }
@@ -60,4 +61,13 @@ func debugHandle(router *mux.Router) {
 	router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 	router.Handle("/debug/pprof/block", pprof.Handler("block"))
 	router.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
+}
+
+// logMiddleware is a middleware function that logs each incoming HTTP request
+func logMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logrus.Infof("Incoming request: Method=%s, URL=%s, RemoteAddr=%s", r.Method, r.URL, r.RemoteAddr)
+		next.ServeHTTP(w, r)
+		logrus.Infof("Completed handling request: Method=%s, URL=%s, RemoteAddr=%s", r.Method, r.URL, r.RemoteAddr)
+	})
 }

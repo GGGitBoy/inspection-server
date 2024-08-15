@@ -56,6 +56,7 @@ func GetHealthCheck(client *apis.Client, clusterName string) (*apis.HealthCheck,
 	set := labels.Set(map[string]string{"name": "inspection-agent"})
 	podList, err := client.Clientset.CoreV1().Pods(common.InspectionNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: set.String()})
 	if err != nil {
+		log.Printf("Error listing pods in namespace %s: %v", common.InspectionNamespace, err)
 		return nil, nil, err
 	}
 
@@ -68,16 +69,19 @@ func GetHealthCheck(client *apis.Client, clusterName string) (*apis.HealthCheck,
 		command := "/opt/inspection/inspection.sh"
 		stdout, stderr, err := ExecToPodThroughAPI(client.Clientset, client.Config, command, commands, podList.Items[0].Namespace, podList.Items[0].Name, "inspection-agent-container")
 		if err != nil {
+			log.Printf("Error executing command in pod %s: %v", podList.Items[0].Name, err)
 			return nil, nil, err
 		}
 
 		if stderr != "" {
+			log.Printf("Stderr from pod %s: %s", podList.Items[0].Name, stderr)
 			return nil, nil, errors.New(stderr)
 		}
 
 		var results []apis.CommandCheckResult
 		err = json.Unmarshal([]byte(stdout), &results)
 		if err != nil {
+			log.Printf("Error unmarshalling stdout for pod %s: %v", podList.Items[0].Name, err)
 			return nil, nil, err
 		}
 
@@ -86,13 +90,14 @@ func GetHealthCheck(client *apis.Client, clusterName string) (*apis.HealthCheck,
 				coreInspections = append(coreInspections, apis.NewInspection(fmt.Sprintf("cluster %s (%s) failed", clusterName, r.Description), fmt.Sprintf("%s", r.Error), 2))
 			}
 
-			if r.Description == "API Server Ready Check" {
+			switch r.Description {
+			case "API Server Ready Check":
 				healthCheck.APIServerReady = &r
-			} else if r.Description == "API Server Live Check" {
+			case "API Server Live Check":
 				healthCheck.APIServerLive = &r
-			} else if r.Description == "ETCD Ready Check" {
+			case "ETCD Ready Check":
 				healthCheck.EtcdReady = &r
-			} else if r.Description == "ETCD Live Check" {
+			case "ETCD Live Check":
 				healthCheck.EtcdLive = &r
 			}
 		}
@@ -108,6 +113,7 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 	set := labels.Set(map[string]string{"name": "inspection-agent"})
 	podList, err := client.Clientset.CoreV1().Pods(common.InspectionNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: set.String()})
 	if err != nil {
+		log.Printf("Error listing pods in namespace %s: %v", common.InspectionNamespace, err)
 		return nil, nil, err
 	}
 
@@ -116,6 +122,7 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 			if slices.Contains(n.Names, pod.Spec.NodeName) {
 				node, err := client.Clientset.CoreV1().Nodes().Get(context.TODO(), pod.Spec.NodeName, metav1.GetOptions{})
 				if err != nil {
+					log.Printf("Error getting node %s: %v", pod.Spec.NodeName, err)
 					return nil, nil, err
 				}
 
@@ -132,24 +139,28 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 				allocatablePods, _ := node.Status.Allocatable.Pods().AsInt64()
 
 				if float64(limitsCPU)/float64(allocatableCPU) > 0.8 {
-					//nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s limits CPU 超过 80%", pod.Spec.NodeName), fmt.Sprintf("limits CPU %d, allocatable CPU %d", limitsCPU, allocatableCPU), 2))
 					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Limits CPU", pod.Spec.NodeName), fmt.Sprintf("节点 %s limits CPU 超过百分之 80", pod.Spec.NodeName), 2))
+					log.Printf("Node %s High Limits CPU: limits CPU %d, allocatable CPU %d", pod.Spec.NodeName, limitsCPU, allocatableCPU)
 				}
 
 				if float64(limitsMemory)/float64(allocatableMemory) > 0.8 {
 					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Limits Memory", pod.Spec.NodeName), fmt.Sprintf("节点 %s limits Memory 超过百分之 80", pod.Spec.NodeName), 2))
+					log.Printf("Node %s High Limits Memory: limits Memory %d, allocatable Memory %d", pod.Spec.NodeName, limitsMemory, allocatableMemory)
 				}
 
 				if float64(requestsCPU)/float64(allocatableCPU) > 0.8 {
 					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Requests CPU", pod.Spec.NodeName), fmt.Sprintf("节点 %s requests CPU 超过百分之 80", pod.Spec.NodeName), 2))
+					log.Printf("Node %s High Requests CPU: requests CPU %d, allocatable CPU %d", pod.Spec.NodeName, requestsCPU, allocatableCPU)
 				}
 
 				if float64(requestsMemory)/float64(allocatableMemory) > 0.8 {
 					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Requests Memory", pod.Spec.NodeName), fmt.Sprintf("节点 %s requests Memory 超过百分之 80", pod.Spec.NodeName), 2))
+					log.Printf("Node %s High Requests Memory: requests Memory %d, allocatable Memory %d", pod.Spec.NodeName, requestsMemory, allocatableMemory)
 				}
 
 				if float64(requestsPods)/float64(allocatablePods) > 0.8 {
 					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Requests Pods", pod.Spec.NodeName), fmt.Sprintf("节点 %s requests Pods 超过百分之 80", pod.Spec.NodeName), 2))
+					log.Printf("Node %s High Requests Pods: requests Pods %d, allocatable Pods %d", pod.Spec.NodeName, requestsPods, allocatablePods)
 				}
 
 				var commands []string
@@ -157,22 +168,29 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 					commands = append(commands, c.Description+": "+c.Command)
 				}
 
-				fmt.Println(commands)
+				log.Printf("Commands to execute on node %s: %v", pod.Spec.NodeName, commands)
 				command := "/opt/inspection/inspection.sh"
 				stdout, stderr, err := ExecToPodThroughAPI(client.Clientset, client.Config, command, commands, pod.Namespace, pod.Name, "inspection-agent-container")
 				if err != nil {
+					log.Printf("Error executing command in pod %s: %v", pod.Name, err)
 					return nil, nil, err
+				}
+
+				if stderr != "" {
+					log.Printf("Stderr from pod %s: %s", pod.Name, stderr)
 				}
 
 				var results []apis.CommandCheckResult
 				err = json.Unmarshal([]byte(stdout), &results)
 				if err != nil {
+					log.Printf("Error unmarshalling stdout for pod %s: %v", pod.Name, err)
 					return nil, nil, err
 				}
 
 				for _, r := range results {
 					if r.Error != "" {
 						nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s (%s)", pod.Spec.NodeName, r.Description), fmt.Sprintf("%s", r.Error), 2))
+						log.Printf("Node %s inspection failed (%s): %s", pod.Spec.NodeName, r.Description, r.Error)
 					}
 				}
 
@@ -202,10 +220,8 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 
 	return nodeNodeArray, nodeInspections, nil
 }
-
 func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, command string, commands []string, namespace string, podName string, containerName string) (string, string, error) {
-	fmt.Println(podName)
-	fmt.Println(namespace)
+	log.Printf("Starting exec to pod: %s, namespace: %s, container: %s", podName, namespace, containerName)
 	req := clientset.CoreV1().RESTClient().
 		Post().
 		Resource("pods").
@@ -222,14 +238,14 @@ func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, c
 	for _, c := range commands {
 		req.Param("command", c)
 	}
-	fmt.Println("llll")
+	log.Printf("Executing command: %s with additional commands: %v", command, commands)
 
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
+		log.Printf("Error creating SPDY executor: %v", err)
 		return "", "", err
 	}
 
-	fmt.Println("ggg")
 	var stdout, stderr string
 	stdoutWriter := &outputWriter{output: &stdout}
 	stderrWriter := &outputWriter{output: &stderr}
@@ -241,13 +257,11 @@ func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, c
 		Tty:    false,
 	})
 	if err != nil {
-		fmt.Println(err)
+		log.Printf("Error executing command: %v", err)
+		return stdout, stderr, err
 	}
 
-	fmt.Println(stdout)
-	fmt.Println(stderr)
-
-	fmt.Println("eee")
+	log.Printf("Command execution completed. Stdout: %s, Stderr: %s", stdout, stderr)
 	return stdout, stderr, nil
 }
 
@@ -261,23 +275,24 @@ func (w *outputWriter) Write(p []byte) (n int, err error) {
 }
 
 func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*apis.Workload, []*apis.Inspection, error) {
+	log.Println("Starting workload inspection")
+
 	ResourceWorkloadArray := apis.NewWorkload()
 	resourceInspections := apis.NewInspections()
 
-	deployState := warning
-	dsState := warning
-	stsState := warning
-	jState := warning
-
 	for _, deploy := range workloadConfig.Deployment {
+		log.Printf("Inspecting Deployment: %s in namespace %s", deploy.Name, deploy.Namespace)
 		deployment, err := client.Clientset.AppsV1().Deployments(deploy.Namespace).Get(context.TODO(), deploy.Name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
+				log.Printf("Deployment %s not found in namespace %s", deploy.Name, deploy.Namespace)
 				continue
 			}
+			log.Printf("Error getting Deployment %s in namespace %s: %v", deploy.Name, deploy.Namespace, err)
 			return nil, nil, err
 		}
 
+		deployState := warning
 		if isDeploymentAvailable(deployment) {
 			deployState = success
 		}
@@ -294,6 +309,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		set := labels.Set(deployment.Spec.Selector.MatchLabels)
 		pods, err := GetPod(deploy.Regexp, deployment.Namespace, set, client.Clientset)
 		if err != nil {
+			log.Printf("Error getting pods for Deployment %s in namespace %s: %v", deploy.Name, deploy.Namespace, err)
 			return nil, nil, err
 		}
 
@@ -314,14 +330,18 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 	}
 
 	for _, ds := range workloadConfig.Daemonset {
+		log.Printf("Inspecting DaemonSet: %s in namespace %s", ds.Name, ds.Namespace)
 		daemonSet, err := client.Clientset.AppsV1().DaemonSets(ds.Namespace).Get(context.TODO(), ds.Name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
+				log.Printf("DaemonSet %s not found in namespace %s", ds.Name, ds.Namespace)
 				continue
 			}
+			log.Printf("Error getting DaemonSet %s in namespace %s: %v", ds.Name, ds.Namespace, err)
 			return nil, nil, err
 		}
 
+		dsState := warning
 		if isDaemonSetAvailable(daemonSet) {
 			dsState = success
 		}
@@ -338,6 +358,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		set := labels.Set(daemonSet.Spec.Selector.MatchLabels)
 		pods, err := GetPod(ds.Regexp, daemonSet.Namespace, set, client.Clientset)
 		if err != nil {
+			log.Printf("Error getting pods for DaemonSet %s in namespace %s: %v", ds.Name, ds.Namespace, err)
 			return nil, nil, err
 		}
 
@@ -358,14 +379,18 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 	}
 
 	for _, sts := range workloadConfig.Statefulset {
+		log.Printf("Inspecting StatefulSet: %s in namespace %s", sts.Name, sts.Namespace)
 		statefulset, err := client.Clientset.AppsV1().StatefulSets(sts.Namespace).Get(context.TODO(), sts.Name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
+				log.Printf("StatefulSet %s not found in namespace %s", sts.Name, sts.Namespace)
 				continue
 			}
+			log.Printf("Error getting StatefulSet %s in namespace %s: %v", sts.Name, sts.Namespace, err)
 			return nil, nil, err
 		}
 
+		stsState := warning
 		if isStatefulSetAvailable(statefulset) {
 			stsState = success
 		}
@@ -382,6 +407,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		set := labels.Set(statefulset.Spec.Selector.MatchLabels)
 		pods, err := GetPod(sts.Regexp, statefulset.Namespace, set, client.Clientset)
 		if err != nil {
+			log.Printf("Error getting pods for StatefulSet %s in namespace %s: %v", sts.Name, sts.Namespace, err)
 			return nil, nil, err
 		}
 
@@ -402,14 +428,18 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 	}
 
 	for _, j := range workloadConfig.Job {
+		log.Printf("Inspecting Job: %s in namespace %s", j.Name, j.Namespace)
 		job, err := client.Clientset.BatchV1().Jobs(j.Namespace).Get(context.TODO(), j.Name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
+				log.Printf("Job %s not found in namespace %s", j.Name, j.Namespace)
 				continue
 			}
+			log.Printf("Error getting Job %s in namespace %s: %v", j.Name, j.Namespace, err)
 			return nil, nil, err
 		}
 
+		jState := warning
 		if isJobCompleted(job) {
 			jState = success
 		}
@@ -426,6 +456,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		set := labels.Set(job.Spec.Selector.MatchLabels)
 		pods, err := GetPod(j.Regexp, j.Namespace, set, client.Clientset)
 		if err != nil {
+			log.Printf("Error getting pods for Job %s in namespace %s: %v", j.Name, j.Namespace, err)
 			return nil, nil, err
 		}
 
@@ -445,39 +476,42 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		}
 	}
 
+	log.Println("Workload inspection completed")
 	return ResourceWorkloadArray, resourceInspections, nil
 }
 
 func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernetes.Clientset) ([]*apis.Pod, error) {
+	log.Printf("Starting to get pods in namespace %s with labels %s", namespace, set.String())
+
 	pods := apis.NewPods()
 
 	podList, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: set.String()})
 	if err != nil {
+		log.Printf("Error listing pods in namespace %s: %v", namespace, err)
 		return nil, err
 	}
 
 	line := int64(10)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+
 	for _, pod := range podList.Items {
 		wg.Add(1)
-		fmt.Println(pod.Name)
 		go func(pod corev1.Pod) {
-			fmt.Println("pod name 3")
 			defer wg.Done()
+			log.Printf("Processing pod: %s", pod.Name)
 
 			getLog := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{TailLines: &line})
 			podLogs, err := getLog.Stream(context.TODO())
 			if err != nil {
-				fmt.Errorf("Error getting logs for pod %s: %v\n", pod.Name, err)
+				log.Printf("Error getting logs for pod %s: %v", pod.Name, err)
 				return
 			}
 			defer podLogs.Close()
 
-			fmt.Println("pod name 4")
 			logs, err := io.ReadAll(podLogs)
 			if err != nil {
-				fmt.Errorf("Error getting logs for pod %s: %v\n", pod.Name, err)
+				log.Printf("Error reading logs for pod %s: %v", pod.Name, err)
 				return
 			}
 
@@ -488,7 +522,7 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 
 			re, err := regexp.Compile(regexpString)
 			if err != nil {
-				fmt.Errorf("Error getting logs for pod %s: %v\n", pod.Name, err)
+				log.Printf("Error compiling regex for pod %s: %v", pod.Name, err)
 				return
 			}
 
@@ -496,93 +530,119 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 			if str == nil {
 				str = []string{}
 			}
-			fmt.Println("pod name 1")
+
 			mu.Lock()
 			pods = append(pods, &apis.Pod{
 				Name: pod.Name,
 				Log:  str,
 			})
 			mu.Unlock()
-			fmt.Println("pod name 2")
+			log.Printf("Processed pod: %s", pod.Name)
 		}(pod)
 	}
 	wg.Wait()
 
-	fmt.Println(pods)
-
+	log.Printf("Completed pod retrieval in namespace %s", namespace)
 	return pods, nil
 }
 
 func GetNamespaces(client *apis.Client) ([]*apis.Namespace, []*apis.Inspection, error) {
+	log.Println("Starting to get namespaces")
+
 	resourceInspections := apis.NewInspections()
 	namespaces := apis.NewNamespaces()
 
 	namespaceList, err := client.Clientset.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
+		log.Printf("Error listing namespaces: %v", err)
 		return nil, nil, err
 	}
 
 	for _, n := range namespaceList.Items {
+		log.Printf("Processing namespace: %s", n.Name)
+
 		var emptyResourceQuota, emptyResource bool
 
 		podList, err := client.Clientset.CoreV1().Pods(n.Name).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			log.Printf("Error listing pods in namespace %s: %v", n.Name, err)
 			return nil, nil, err
 		}
 
 		serviceList, err := client.Clientset.CoreV1().Services(n.Name).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			log.Printf("Error listing services in namespace %s: %v", n.Name, err)
 			return nil, nil, err
 		}
 
 		deploymentList, err := client.Clientset.AppsV1().Deployments(n.Name).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			log.Printf("Error listing deployments in namespace %s: %v", n.Name, err)
 			return nil, nil, err
 		}
 
 		replicaSetList, err := client.Clientset.AppsV1().ReplicaSets(n.Name).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			log.Printf("Error listing replica sets in namespace %s: %v", n.Name, err)
 			return nil, nil, err
 		}
 
 		statefulSetList, err := client.Clientset.AppsV1().StatefulSets(n.Name).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			log.Printf("Error listing stateful sets in namespace %s: %v", n.Name, err)
 			return nil, nil, err
 		}
 
 		daemonSetList, err := client.Clientset.AppsV1().DaemonSets(n.Name).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			log.Printf("Error listing daemon sets in namespace %s: %v", n.Name, err)
 			return nil, nil, err
 		}
 
 		jobList, err := client.Clientset.BatchV1().Jobs(n.Name).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			log.Printf("Error listing jobs in namespace %s: %v", n.Name, err)
 			return nil, nil, err
 		}
 
 		secretList, err := client.Clientset.CoreV1().Secrets(n.Name).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			log.Printf("Error listing secrets in namespace %s: %v", n.Name, err)
 			return nil, nil, err
 		}
 
 		configMapList, err := client.Clientset.CoreV1().ConfigMaps(n.Name).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			log.Printf("Error listing config maps in namespace %s: %v", n.Name, err)
 			return nil, nil, err
 		}
 
-		resourceQuotaList, err := client.Clientset.CoreV1().ResourceQuotas(n.GetName()).List(context.TODO(), metav1.ListOptions{})
+		resourceQuotaList, err := client.Clientset.CoreV1().ResourceQuotas(n.Name).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			log.Printf("Error listing resource quotas in namespace %s: %v", n.Name, err)
 			return nil, nil, err
 		}
 
 		if len(resourceQuotaList.Items) == 0 {
 			emptyResourceQuota = true
-			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("命名空间 %s 没有设置配额", n.Name), fmt.Sprintf(""), 1))
+			resourceInspections = append(resourceInspections, apis.NewInspection(
+				fmt.Sprintf("命名空间 %s 没有设置配额", n.Name),
+				"未设置资源配额",
+				1,
+			))
 		}
 
-		if (len(podList.Items) + len(serviceList.Items) + len(deploymentList.Items) + len(replicaSetList.Items) + len(statefulSetList.Items) + len(daemonSetList.Items) + len(jobList.Items) + len(secretList.Items) + len(configMapList.Items)) == 0 {
+		totalResources := len(podList.Items) + len(serviceList.Items) + len(deploymentList.Items) +
+			len(replicaSetList.Items) + len(statefulSetList.Items) + len(daemonSetList.Items) +
+			len(jobList.Items) + len(secretList.Items) + len(configMapList.Items)
+
+		if totalResources == 0 {
 			emptyResource = true
-			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("命名空间 %s 下资源为空", n.Name), fmt.Sprintf("检查对象为 Pod、Service、Deployment、Replicaset、Statefulset、Daemonset、Job、Secret、ConfigMap"), 1))
+			resourceInspections = append(resourceInspections, apis.NewInspection(
+				fmt.Sprintf("命名空间 %s 下资源为空", n.Name),
+				"检查对象为 Pod、Service、Deployment、Replicaset、Statefulset、Daemonset、Job、Secret、ConfigMap",
+				1,
+			))
 		}
 
 		namespaces = append(namespaces, &apis.Namespace{
@@ -599,37 +659,52 @@ func GetNamespaces(client *apis.Client) ([]*apis.Namespace, []*apis.Inspection, 
 			SecretCount:        len(secretList.Items),
 			ConfigMapCount:     len(configMapList.Items),
 		})
+
+		log.Printf("Processed namespace: %s", n.Name)
 	}
 
+	log.Println("Completed namespace retrieval")
 	return namespaces, resourceInspections, nil
 }
 
 func GetServices(client *apis.Client) ([]*apis.Service, []*apis.Inspection, error) {
+	log.Println("Starting to get services")
+
 	resourceInspections := apis.NewInspections()
 	services := apis.NewServices()
 
-	// 获取所有命名空间下的所有 Services
 	serviceList, err := client.Clientset.CoreV1().Services("").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
+		log.Printf("Error listing services: %v", err)
 		return nil, nil, err
 	}
 
 	for _, s := range serviceList.Items {
-		// 获取对应的 Endpoints
+		log.Printf("Processing service: %s/%s", s.Namespace, s.Name)
+
 		endpoints, err := client.Clientset.CoreV1().Endpoints(s.Namespace).Get(context.TODO(), s.Name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("命名空间 %s 下 Service %s 找不到对应 endpoint", s.Namespace, s.Name), fmt.Sprintf(""), 1))
+				log.Printf("Service %s/%s does not have corresponding endpoints", s.Namespace, s.Name)
+				resourceInspections = append(resourceInspections, apis.NewInspection(
+					fmt.Sprintf("命名空间 %s 下 Service %s 找不到对应 endpoint", s.Namespace, s.Name),
+					"对应的 Endpoints 未找到",
+					1,
+				))
 				continue
 			}
+			log.Printf("Error getting endpoints for service %s/%s: %v", s.Namespace, s.Name, err)
 			return nil, nil, err
 		}
 
-		// 检查 Endpoints 是否为空
 		var emptyEndpoints bool
 		if len(endpoints.Subsets) == 0 {
 			emptyEndpoints = true
-			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("命名空间 %s 下 Service %s 对应 Endpoints 没有 Subsets", s.Namespace, s.Name), fmt.Sprintf(""), 1))
+			resourceInspections = append(resourceInspections, apis.NewInspection(
+				fmt.Sprintf("命名空间 %s 下 Service %s 对应 Endpoints 没有 Subsets", s.Namespace, s.Name),
+				"对应的 Endpoints 没有 Subsets",
+				1,
+			))
 		}
 
 		services = append(services, &apis.Service{
@@ -639,22 +714,23 @@ func GetServices(client *apis.Client) ([]*apis.Service, []*apis.Inspection, erro
 		})
 	}
 
+	log.Println("Completed getting services")
 	return services, resourceInspections, nil
 }
-
 func GetIngress(client *apis.Client) ([]*apis.Ingress, []*apis.Inspection, error) {
+	log.Println("Starting to get ingresses")
+
 	resourceInspections := apis.NewInspections()
 	ingress := apis.NewIngress()
 
-	// 获取所有命名空间下的所有 Ingress
-	ingresseList, err := client.Clientset.NetworkingV1().Ingresses("").List(context.TODO(), metav1.ListOptions{})
+	ingressList, err := client.Clientset.NetworkingV1().Ingresses("").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		log.Fatalf("Error listing ingresses: %v", err)
+		log.Printf("Error listing ingresses: %v", err)
+		return nil, nil, err
 	}
 
-	// 使用 map 来记录 host+path 与 ingress 名称的映射
 	ingressMap := make(map[string][]string)
-	for _, i := range ingresseList.Items {
+	for _, i := range ingressList.Items {
 		for _, rule := range i.Spec.Rules {
 			host := rule.Host
 			for _, path := range rule.HTTP.Paths {
@@ -671,20 +747,19 @@ func GetIngress(client *apis.Client) ([]*apis.Ingress, []*apis.Inspection, error
 	}
 
 	duplicateIngress := make(map[string]int)
-	// 检查是否有重名且 Path 路径相同的 Ingress
 	for key, ingressNames := range ingressMap {
 		if len(ingressNames) > 1 {
 			for _, ingressName := range ingressNames {
 				duplicateIngress[ingressName] = 1
 			}
-			fmt.Printf("发现重名且 Path 路径相同的 Ingress: %s, Ingress 列表: %v\n", key, ingressNames)
+			log.Printf("Found duplicate ingress with same path: %s, Ingress list: %v", key, ingressNames)
 		}
 	}
 
 	if len(duplicateIngress) > 0 {
 		var result []string
-		for NamespaceName, _ := range duplicateIngress {
-			parts := strings.Split(NamespaceName, "/")
+		for namespaceName := range duplicateIngress {
+			parts := strings.Split(namespaceName, "/")
 			for index, i := range ingress {
 				if parts[0] == i.Namespace && parts[1] == i.Name {
 					ingress[index] = &apis.Ingress{
@@ -695,12 +770,17 @@ func GetIngress(client *apis.Client) ([]*apis.Ingress, []*apis.Inspection, error
 				}
 			}
 
-			result = append(result, NamespaceName)
+			result = append(result, namespaceName)
 		}
 
-		resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Ingress %s 存在重复的 Path", strings.Join(result, ", ")), fmt.Sprintf(""), 1))
+		resourceInspections = append(resourceInspections, apis.NewInspection(
+			fmt.Sprintf("Ingress %s 存在重复的 Path", strings.Join(result, ", ")),
+			"存在重复的路径",
+			1,
+		))
 	}
 
+	log.Println("Completed getting ingresses")
 	return ingress, resourceInspections, nil
 }
 

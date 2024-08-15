@@ -86,39 +86,49 @@ func main() {
 
 	app.Action = func(ctx *cli.Context) error {
 		router := server.Start()
-		logrus.Infof("server running, listening at: %d\n", port)
+		logrus.Infof("Server running, listening at: %d\n", port)
 
-		return http.ListenAndServe(fmt.Sprintf(":%d", port), router)
+		err := http.ListenAndServe(fmt.Sprintf(":%d", port), router)
+		if err != nil {
+			logrus.Errorf("Failed to start server: %v", err)
+			return err
+		}
+		return nil
 	}
 	app.Before = before
 
 	if err := app.Run(os.Args); err != nil {
-		logrus.Fatal(err)
+		logrus.Fatalf("Application encountered an error: %v", err)
 	}
 }
 
 func before(ctx *cli.Context) error {
 	if ctx.Bool("debug") {
 		logrus.SetLevel(logrus.DebugLevel)
+		logrus.Debug("Debug mode enabled")
 	}
 
 	err := db.Register()
 	if err != nil {
+		logrus.Errorf("Failed to register database: %v", err)
 		return err
 	}
 
 	err = schedule.Register()
 	if err != nil {
+		logrus.Errorf("Failed to register schedule: %v", err)
 		return err
 	}
 
 	err = template.Register()
 	if err != nil {
+		logrus.Errorf("Failed to register template: %v", err)
 		return err
 	}
 
 	err = agent.Register()
 	if err != nil {
+		logrus.Errorf("Failed to register agent: %v", err)
 		return err
 	}
 

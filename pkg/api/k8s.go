@@ -51,12 +51,14 @@ func GetClusters() http.Handler {
 		clusters := NewClusters()
 		localKubernetesClient, err := common.GetKubernetesClient(common.LocalCluster)
 		if err != nil {
+			logrus.Errorf("Failed to get local Kubernetes client: %v", err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
 		clusterList, err := localKubernetesClient.DynamicClient.Resource(common.ClusterRes).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			logrus.Errorf("Failed to list clusters: %v", err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
@@ -64,11 +66,16 @@ func GetClusters() http.Handler {
 		for _, c := range clusterList.Items {
 			spec, _, err := unstructured.NestedMap(c.UnstructuredContent(), "spec")
 			if err != nil {
-				logrus.Errorf("Could not get cluster %s spec : %v\n", c.GetName(), err)
+				logrus.Errorf("Failed to get cluster spec for %s: %v", c.GetName(), err)
 				continue
 			}
 
-			displayName := spec["displayName"].(string)
+			displayName, ok := spec["displayName"].(string)
+			if !ok {
+				logrus.Warnf("displayName not found for cluster %s", c.GetName())
+				continue
+			}
+
 			clusters = append(clusters, &Cluster{
 				ClusterID:   c.GetName(),
 				ClusterName: displayName,
@@ -77,11 +84,15 @@ func GetClusters() http.Handler {
 
 		jsonData, err := json.MarshalIndent(clusters, "", "\t")
 		if err != nil {
+			logrus.Errorf("Failed to marshal clusters response: %v", err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
-		rw.Write(jsonData)
+		if _, err := rw.Write(jsonData); err != nil {
+			logrus.Errorf("Failed to write clusters response: %v", err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+		}
 	})
 }
 
@@ -93,12 +104,14 @@ func GetResource() http.Handler {
 
 		kubernetesClient, err := common.GetKubernetesClient(clusterID)
 		if err != nil {
+			logrus.Errorf("Failed to get Kubernetes client for cluster %s: %v", clusterID, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
 		nodes, err := kubernetesClient.Clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			logrus.Errorf("Failed to list nodes for cluster %s: %v", clusterID, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
@@ -109,6 +122,7 @@ func GetResource() http.Handler {
 
 		deployments, err := kubernetesClient.Clientset.AppsV1().Deployments("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			logrus.Errorf("Failed to list deployments for cluster %s: %v", clusterID, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
@@ -122,6 +136,7 @@ func GetResource() http.Handler {
 
 		daemonSets, err := kubernetesClient.Clientset.AppsV1().DaemonSets("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			logrus.Errorf("Failed to list daemonsets for cluster %s: %v", clusterID, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
@@ -135,6 +150,7 @@ func GetResource() http.Handler {
 
 		statefulSets, err := kubernetesClient.Clientset.AppsV1().StatefulSets("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			logrus.Errorf("Failed to list statefulsets for cluster %s: %v", clusterID, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
@@ -148,6 +164,7 @@ func GetResource() http.Handler {
 
 		jobs, err := kubernetesClient.Clientset.BatchV1().Jobs("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			logrus.Errorf("Failed to list jobs for cluster %s: %v", clusterID, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
@@ -161,6 +178,7 @@ func GetResource() http.Handler {
 
 		cronJobs, err := kubernetesClient.Clientset.BatchV1().CronJobs("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
+			logrus.Errorf("Failed to list cronjobs for cluster %s: %v", clusterID, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
@@ -174,11 +192,15 @@ func GetResource() http.Handler {
 
 		jsonData, err := json.MarshalIndent(resource, "", "\t")
 		if err != nil {
+			logrus.Errorf("Failed to marshal resource response: %v", err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
-		rw.Write(jsonData)
+		if _, err := rw.Write(jsonData); err != nil {
+			logrus.Errorf("Failed to write resource response: %v", err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+		}
 	})
 }
 
@@ -192,13 +214,19 @@ func GetGrafanaClusterIP() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		localKubernetesClient, err := common.GetKubernetesClient(common.LocalCluster)
 		if err != nil {
+			logrus.Errorf("Failed to get local Kubernetes client: %v", err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
 		service, err := localKubernetesClient.Clientset.CoreV1().Services("cattle-global-monitoring").Get(context.TODO(), "access-grafana", metav1.GetOptions{})
-		if err != nil && !k8serrors.IsNotFound(err) {
-			common.HandleError(rw, http.StatusInternalServerError, err)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				logrus.Warnf("Grafana service not found: %v", err)
+			} else {
+				logrus.Errorf("Failed to get Grafana service: %v", err)
+				common.HandleError(rw, http.StatusInternalServerError, err)
+			}
 			return
 		}
 
@@ -210,10 +238,14 @@ func GetGrafanaClusterIP() http.Handler {
 
 		jsonData, err := json.MarshalIndent(grafanaService, "", "\t")
 		if err != nil {
+			logrus.Errorf("Failed to marshal Grafana service response: %v", err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
 
-		rw.Write(jsonData)
+		if _, err := rw.Write(jsonData); err != nil {
+			logrus.Errorf("Failed to write Grafana service response: %v", err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+		}
 	})
 }

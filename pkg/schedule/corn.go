@@ -5,6 +5,7 @@ import (
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
 	"inspection-server/pkg/db"
+	"log"
 	"time"
 )
 
@@ -31,20 +32,23 @@ func AddCornTask(task *apis.Task) error {
 
 		err := db.CreateTask(newTask)
 		if err != nil {
-			fmt.Errorf("Scheduled schedule %s to execute at %s\n", newTask.ID, newTask.Cron)
+			log.Printf("Failed to create task in DB for scheduled schedule %s: %v", newTask.ID, err)
+			return
 		}
 
+		log.Printf("Executing task: %s", newTask.ID)
 		go ExecuteTask(newTask)
-		fmt.Printf("Executing schedule: %+v\n", newTask)
+		log.Printf("Task %s is executing", newTask.ID)
 	})
 	if err != nil {
-		return fmt.Errorf("Error adding cron job: %v\n", err)
+		return fmt.Errorf("Error adding cron job: %v", err)
 	}
+
 	TaskMap[task.ID] = &Schedule{
 		Cron: entryID,
 	}
 
-	fmt.Printf("Scheduled schedule %s to execute at %s\n", task.ID, task.Cron)
+	log.Printf("Scheduled task %s to execute at %s", task.ID, task.Cron)
 
 	return nil
 }
@@ -56,12 +60,12 @@ func RemoveCorntask(taskID string) error {
 	if s, exists := TaskMap[taskID]; exists {
 		CronClient.Remove(s.Cron)
 		delete(TaskMap, taskID)
-		fmt.Printf("Deleted scheduled schedule %s\n", taskID)
+		log.Printf("Deleted scheduled task with ID %s", taskID)
 	} else {
-		fmt.Printf("No scheduled schedule found with ID %s\n", taskID)
+		log.Printf("No scheduled task found with ID %s", taskID)
 	}
 
-	fmt.Printf("Removed schedule: %+v\n", taskID)
+	log.Printf("Removed task with ID: %s", taskID)
 
 	return nil
 }
