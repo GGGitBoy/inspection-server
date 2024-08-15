@@ -55,6 +55,7 @@ type WorkloadDetailConfig struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 	Regexp    string `json:"regexp"`
+	Level     int    `json:"level"`
 }
 
 type NodeConfig struct {
@@ -65,6 +66,7 @@ type NodeConfig struct {
 type CommandConfig struct {
 	Description string `json:"description"`
 	Command     string `json:"command"`
+	Level       int    `json:"level"`
 }
 
 func NewTemplate() *Template {

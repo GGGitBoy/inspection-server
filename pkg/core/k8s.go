@@ -87,7 +87,7 @@ func GetHealthCheck(client *apis.Client, clusterName string) (*apis.HealthCheck,
 
 		for _, r := range results {
 			if r.Error != "" {
-				coreInspections = append(coreInspections, apis.NewInspection(fmt.Sprintf("cluster %s (%s) failed", clusterName, r.Description), fmt.Sprintf("%s", r.Error), 2))
+				coreInspections = append(coreInspections, apis.NewInspection(fmt.Sprintf("cluster %s (%s) failed", clusterName, r.Description), fmt.Sprintf("%s", r.Error), 3))
 			}
 
 			switch r.Description {
@@ -325,7 +325,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 
 		ResourceWorkloadArray.Deployment = append(ResourceWorkloadArray.Deployment, deploymentData)
 		if deployState == warning {
-			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Deployment %s 警告", deploymentData.Name), fmt.Sprintf("命名空间 %s 下的 Deployment %s 处于非健康状态", deploymentData.Namespace, deploymentData.Name), 2))
+			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Deployment %s 警告", deploymentData.Name), fmt.Sprintf("命名空间 %s 下的 Deployment %s 处于非健康状态", deploymentData.Namespace, deploymentData.Name), defaultLevel(deploy.Level)))
 		}
 	}
 
@@ -374,7 +374,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 
 		ResourceWorkloadArray.Daemonset = append(ResourceWorkloadArray.Daemonset, daemonSetData)
 		if dsState == warning {
-			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Daemonset %s 警告", daemonSetData.Name), fmt.Sprintf("命名空间 %s 下的 Daemonset %s 处于非健康状态", daemonSetData.Namespace, daemonSetData.Name), 2))
+			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Daemonset %s 警告", daemonSetData.Name), fmt.Sprintf("命名空间 %s 下的 Daemonset %s 处于非健康状态", daemonSetData.Namespace, daemonSetData.Name), defaultLevel(ds.Level)))
 		}
 	}
 
@@ -423,7 +423,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 
 		ResourceWorkloadArray.Statefulset = append(ResourceWorkloadArray.Statefulset, statefulSetData)
 		if stsState == warning {
-			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Statefulset %s 警告", statefulSetData.Name), fmt.Sprintf("命名空间 %s 下的 Statefulset %s 处于非健康状态", statefulSetData.Namespace, statefulSetData.Name), 2))
+			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Statefulset %s 警告", statefulSetData.Name), fmt.Sprintf("命名空间 %s 下的 Statefulset %s 处于非健康状态", statefulSetData.Namespace, statefulSetData.Name), defaultLevel(sts.Level)))
 		}
 	}
 
@@ -472,7 +472,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 
 		ResourceWorkloadArray.Job = append(ResourceWorkloadArray.Job, jobData)
 		if jState == warning {
-			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Job %s 警告", jobData.Name), fmt.Sprintf("命名空间 %s 下的 Job %s 处于非健康状态", jobData.Namespace, jobData.Name), 2))
+			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("Job %s 警告", jobData.Name), fmt.Sprintf("命名空间 %s 下的 Job %s 处于非健康状态", jobData.Namespace, jobData.Name), defaultLevel(j.Level)))
 		}
 	}
 
@@ -634,7 +634,7 @@ func GetNamespaces(client *apis.Client) ([]*apis.Namespace, []*apis.Inspection, 
 
 		totalResources := len(podList.Items) + len(serviceList.Items) + len(deploymentList.Items) +
 			len(replicaSetList.Items) + len(statefulSetList.Items) + len(daemonSetList.Items) +
-			len(jobList.Items) + len(secretList.Items) + len(configMapList.Items)
+			len(jobList.Items) + len(secretList.Items) + (len(configMapList.Items) - 1)
 
 		if totalResources == 0 {
 			emptyResource = true
@@ -657,7 +657,7 @@ func GetNamespaces(client *apis.Client) ([]*apis.Namespace, []*apis.Inspection, 
 			DaemonsetCount:     len(daemonSetList.Items),
 			JobCount:           len(jobList.Items),
 			SecretCount:        len(secretList.Items),
-			ConfigMapCount:     len(configMapList.Items),
+			ConfigMapCount:     len(configMapList.Items) - 1,
 		})
 
 		log.Printf("Processed namespace: %s", n.Name)
@@ -814,4 +814,12 @@ func isStatefulSetAvailable(statefulset *appsv1.StatefulSet) bool {
 
 func isJobCompleted(job *batchv1.Job) bool {
 	return job.Status.Succeeded >= *job.Spec.Completions
+}
+
+func defaultLevel(level int) int {
+	if level != 0 {
+		return level
+	}
+
+	return 2
 }

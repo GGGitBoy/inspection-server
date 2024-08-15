@@ -21,7 +21,7 @@ func GetTask(ID string) (*apis.Task, error) {
 
 	row := DB.QueryRow("SELECT id, name, start_time, end_time, cron, state, rating, report_id, template_id, notify_id, task_id, mode, err_message FROM task WHERE id = ? LIMIT 1", ID)
 
-	var task apis.Task
+	task := apis.NewTask()
 	err = row.Scan(&task.ID, &task.Name, &task.StartTime, &task.EndTime, &task.Cron, &task.State, &task.Rating, &task.ReportID, &task.TemplateID, &task.NotifyID, &task.TaskID, &task.Mode, &task.ErrMessage)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -33,7 +33,7 @@ func GetTask(ID string) (*apis.Task, error) {
 	}
 
 	log.Printf("Task retrieved successfully with ID: %s", task.ID)
-	return &task, nil
+	return task, nil
 }
 
 // ListTask retrieves all tasks from the database.
@@ -56,7 +56,7 @@ func ListTask() ([]*apis.Task, error) {
 	}
 	defer rows.Close()
 
-	var tasks []*apis.Task
+	tasks := apis.NewTasks()
 	for rows.Next() {
 		var task apis.Task
 		err = rows.Scan(&task.ID, &task.Name, &task.StartTime, &task.EndTime, &task.Cron, &task.State, &task.Rating, &task.ReportID, &task.TemplateID, &task.NotifyID, &task.TaskID, &task.Mode, &task.ErrMessage)

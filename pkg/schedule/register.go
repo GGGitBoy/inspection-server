@@ -1,11 +1,13 @@
 package schedule
 
 import (
+	"fmt"
 	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/core"
 	"inspection-server/pkg/db"
+	"strings"
 	"sync"
 	"time"
 )
@@ -98,9 +100,11 @@ func GetLoc() *time.Location {
 func ExecuteTask(task *apis.Task) {
 	logrus.Infof("Executing task %s: %s", task.ID, task.Name)
 
-	err, errMessage := core.Inspection(task)
+	err := core.Inspection(task)
 	if err != nil {
 		logrus.Errorf("Inspection failed for task %s: %v", task.ID, err)
+		var errMessage strings.Builder
+		errMessage.WriteString(fmt.Sprintf("巡检失败: %v\n", err))
 		task.State = "巡检失败"
 		task.ErrMessage = errMessage.String()
 		updateErr := db.UpdateTask(task)

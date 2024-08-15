@@ -13,30 +13,27 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func Inspection(task *apis.Task) (error, strings.Builder) {
-	var errMessage strings.Builder
-	var err error
-
+func Inspection(task *apis.Task) error {
 	task.State = "巡检中"
 	logrus.Infof("Starting inspection for task ID: %s", task.ID)
 
-	err = db.UpdateTask(task)
+	err := db.UpdateTask(task)
 	if err != nil {
 		logrus.Errorf("Failed to update task state to '巡检中' for task ID %s: %v", task.ID, err)
-		return err, errMessage
+		return err
 	}
 
 	template, err := db.GetTemplate(task.TemplateID)
 	if err != nil {
 		logrus.Errorf("Failed to get template for task ID %s: %v", task.ID, err)
-		return err, errMessage
+		return err
 	}
 
 	clients := apis.NewClients()
 	err = common.GenerateKubeconfig(clients)
 	if err != nil {
 		logrus.Errorf("Failed to generate kubeconfig: %v", err)
-		return err, errMessage
+		return err
 	}
 
 	report := apis.NewReport()
@@ -44,9 +41,8 @@ func Inspection(task *apis.Task) (error, strings.Builder) {
 
 	allGrafanaInspections, err := GetAllGrafanaInspections()
 	if err != nil {
-		errMessage.WriteString(fmt.Sprintf("获取图表告警失败: %v\n", err))
 		logrus.Errorf("Failed to get all Grafana inspections: %v", err)
-		return err, errMessage
+		return err
 	}
 
 	level := 0
@@ -66,30 +62,30 @@ func Inspection(task *apis.Task) (error, strings.Builder) {
 
 				healthCheck, coreInspectionArray, err := GetHealthCheck(client, k.ClusterName)
 				if err != nil {
-					errMessage.WriteString(fmt.Sprintf("获取集群 %s API Server 相关巡检信息时失败: %v\n", clusterID, err))
 					logrus.Errorf("Failed to get health check for cluster %s: %v", clusterID, err)
+					return err
 				}
 				coreInspections = append(coreInspections, coreInspectionArray...)
 
 				NodeNodeArray, nodeInspectionArray, err := GetNodes(client, k.ClusterNodeConfig.NodeConfig)
 				if err != nil {
-					errMessage.WriteString(fmt.Sprintf("获取集群 %s 节点相关巡检信息时失败: %v\n", clusterID, err))
 					logrus.Errorf("Failed to get nodes for cluster %s: %v", clusterID, err)
+					return err
 				}
 				nodeInspections = append(nodeInspections, nodeInspectionArray...)
 
 				ResourceWorkloadArray, resourceInspectionArray, err := GetWorkloads(client, k.ClusterResourceConfig.WorkloadConfig)
 				if err != nil {
-					errMessage.WriteString(fmt.Sprintf("获取集群 %s 工作负载相关巡检信息时失败: %v\n", clusterID, err))
 					logrus.Errorf("Failed to get workloads for cluster %s: %v", clusterID, err)
+					return err
 				}
 				resourceInspections = append(resourceInspections, resourceInspectionArray...)
 
 				if k.ClusterResourceConfig.NamespaceConfig.Enable {
 					ResourceNamespaceArray, resourceInspectionArray, err := GetNamespaces(client)
 					if err != nil {
-						errMessage.WriteString(fmt.Sprintf("获取集群 %s 命名空间相关巡检信息时失败: %v\n", clusterID, err))
 						logrus.Errorf("Failed to get namespaces for cluster %s: %v", clusterID, err)
+						return err
 					}
 
 					clusterResource.Namespace = ResourceNamespaceArray
@@ -99,8 +95,8 @@ func Inspection(task *apis.Task) (error, strings.Builder) {
 				if k.ClusterResourceConfig.ServiceConfig.Enable {
 					ResourceServiceArray, resourceInspectionArray, err := GetServices(client)
 					if err != nil {
-						errMessage.WriteString(fmt.Sprintf("获取集群 %s Service 相关巡检信息时失败: %v\n", clusterID, err))
 						logrus.Errorf("Failed to get services for cluster %s: %v", clusterID, err)
+						return err
 					}
 
 					clusterResource.Service = ResourceServiceArray
@@ -110,8 +106,8 @@ func Inspection(task *apis.Task) (error, strings.Builder) {
 				if k.ClusterResourceConfig.IngressConfig.Enable {
 					ResourceIngressArray, resourceInspectionArray, err := GetIngress(client)
 					if err != nil {
-						errMessage.WriteString(fmt.Sprintf("获取集群 %s Ingress 相关巡检信息时失败: %v\n", clusterID, err))
 						logrus.Errorf("Failed to get ingress for cluster %s: %v", clusterID, err)
+						return err
 					}
 
 					clusterResource.Ingress = ResourceIngressArray
@@ -202,7 +198,7 @@ func Inspection(task *apis.Task) (error, strings.Builder) {
 	err = db.CreateReport(report)
 	if err != nil {
 		logrus.Errorf("Failed to create report: %v", err)
-		return err, errMessage
+		return err
 	}
 
 	var sb strings.Builder
@@ -218,20 +214,20 @@ func Inspection(task *apis.Task) (error, strings.Builder) {
 	err = pdfPrint.FullScreenshot(p)
 	if err != nil {
 		logrus.Errorf("Failed to take screenshot for report ID %s: %v", report.ID, err)
-		return err, errMessage
+		return err
 	}
 
 	if task.NotifyID != "" {
 		notify, err := db.GetNotify(task.NotifyID)
 		if err != nil {
 			logrus.Errorf("Failed to get notification details for NotifyID %s: %v", task.NotifyID, err)
-			return err, errMessage
+			return err
 		}
 
 		err = send.Notify(notify.AppID, notify.AppSecret, common.GetReportFileName(p.ReportTime), common.PrintPDFPath+common.GetReportFileName(p.ReportTime), sb.String())
 		if err != nil {
 			logrus.Errorf("Failed to send notification: %v", err)
-			return err, errMessage
+			return err
 		}
 	}
 
@@ -239,13 +235,12 @@ func Inspection(task *apis.Task) (error, strings.Builder) {
 	task.Rating = report.Global.Rating
 	task.ReportID = report.ID
 	task.State = "巡检完成"
-	task.ErrMessage = errMessage.String()
 	err = db.UpdateTask(task)
 	if err != nil {
 		logrus.Errorf("Failed to update task state to '巡检完成' for task ID %s: %v", task.ID, err)
-		return err, errMessage
+		return err
 	}
 
 	logrus.Infof("Inspection completed for task ID: %s", task.ID)
-	return nil, errMessage
+	return nil
 }

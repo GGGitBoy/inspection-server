@@ -32,7 +32,7 @@ var (
 			{
 				Name:      "coredns",
 				Namespace: "kube-system",
-				Regexp:    "\\[(ERROR|WARNING)\\].*",
+				Regexp:    "",
 			},
 			{
 				Name:      "coredns-autoscaler",
@@ -160,6 +160,13 @@ func Register() error {
 		}
 
 		workloadConfig := getWorkloadConfigByProvider(provider)
+
+		workloadConfig.Deployment = append(workloadConfig.Deployment, &apis.WorkloadDetailConfig{
+			Name:      "rancher",
+			Namespace: "cattle-system",
+			Regexp:    "\\[(ERROR|WARNING)\\].*",
+			Level:     3,
+		})
 
 		nodeList, err := kubernetesClient.Clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
