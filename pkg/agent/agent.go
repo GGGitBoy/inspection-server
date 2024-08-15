@@ -207,12 +207,14 @@ func ApplyDaemonSet(clientset *kubernetes.Clientset) error {
 	}
 
 	var rendered bytes.Buffer
-	if err := tmpl.Execute(&rendered, Values{
-		SetDocker:     setDocker,
-		SetContainerd: setContainerd,
-		Provider:      provider,
-	}); err != nil {
-		logrus.Errorf("Failed to execute template: %v", err)
+	err = tmpl.Execute(&rendered, map[string]interface{}{
+		"Values": Values{
+			SetDocker:     setDocker,
+			SetContainerd: setContainerd,
+			Provider:      provider,
+		},
+	})
+	if err != nil {
 		return err
 	}
 
