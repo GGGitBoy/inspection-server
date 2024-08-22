@@ -250,7 +250,7 @@ func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, c
 	stdoutWriter := &outputWriter{output: &stdout}
 	stderrWriter := &outputWriter{output: &stderr}
 
-	err = exec.StreamWithContext(context.TODO(), remotecommand.StreamOptions{
+	err = exec.Stream(remotecommand.StreamOptions{
 		Stdin:  os.Stdin,
 		Stdout: stdoutWriter,
 		Stderr: stderrWriter,

@@ -81,6 +81,24 @@ func CreateNotify() http.Handler {
 			return
 		}
 
+		notifys, err := db.ListNotify()
+		if err != nil {
+			logrus.Errorf("Failed to list notifies: %v", err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
+
+		for _, n := range notifys {
+			if notify.Name == n.Name {
+				if _, err := rw.Write([]byte("该名称已存在")); err != nil {
+					logrus.Errorf("Failed to write creation response: %v", err)
+					common.HandleError(rw, http.StatusInternalServerError, err)
+					return
+				}
+				return
+			}
+		}
+
 		notify.ID = common.GetUUID()
 		err = db.CreateNotify(notify)
 		if err != nil {
@@ -92,6 +110,7 @@ func CreateNotify() http.Handler {
 		if _, err := rw.Write([]byte("创建完成")); err != nil {
 			logrus.Errorf("Failed to write creation response: %v", err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
 		}
 	})
 }

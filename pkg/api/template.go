@@ -89,8 +89,25 @@ func CreateTemplate() http.Handler {
 			return
 		}
 
-		template.ID = common.GetUUID()
+		templates, err := db.ListTemplate()
+		if err != nil {
+			logrus.Errorf("Failed to list tasks: %v", err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
 
+		for _, t := range templates {
+			if template.Name == t.Name {
+				if _, err := rw.Write([]byte("该名称已存在")); err != nil {
+					logrus.Errorf("Failed to write creation response: %v", err)
+					common.HandleError(rw, http.StatusInternalServerError, err)
+					return
+				}
+				return
+			}
+		}
+
+		template.ID = common.GetUUID()
 		err = db.CreateTemplate(template)
 		if err != nil {
 			logrus.Errorf("Failed to create template with ID %s: %v", template.ID, err)

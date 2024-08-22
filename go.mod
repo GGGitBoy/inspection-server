@@ -1,12 +1,12 @@
 module inspection-server
 
-go 1.22.2
+go 1.19
 
 replace (
 	github.com/rancher/kubernetes-provider-detector => github.com/cnrancher/kubernetes-provider-detector v0.1.6-0.20231201070144-30b5716078ac
-	k8s.io/api => k8s.io/api v0.28.6
-	k8s.io/apimachinery => k8s.io/apimachinery v0.28.6
-	k8s.io/client-go => k8s.io/client-go v0.28.6
+	k8s.io/api => k8s.io/api v0.24.2
+	k8s.io/apimachinery => k8s.io/apimachinery v0.24.2
+	k8s.io/client-go => github.com/rancher/client-go v1.24.0-rancher1
 )
 
 require (
@@ -39,6 +39,7 @@ require (
 	github.com/go-openapi/swag v0.22.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect

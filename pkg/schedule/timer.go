@@ -9,7 +9,7 @@ import (
 )
 
 func AddTimeTask(task *apis.Task) error {
-	startTime, err := time.ParseInLocation(time.DateTime, task.StartTime, GetLoc())
+	startTime, err := time.ParseInLocation("2006-01-02 15:04:05", task.StartTime, GetLoc())
 	if err != nil {
 		logrus.Errorf("Error parsing start time for task %s: %v", task.ID, err)
 		return fmt.Errorf("error parsing start time for schedule %s: %v", task.ID, err)
@@ -18,7 +18,7 @@ func AddTimeTask(task *apis.Task) error {
 	duration := time.Until(startTime)
 	logrus.Infof("Task %s will execute after %.2f minutes", task.ID, duration.Minutes())
 	if duration <= 0 {
-		task.StartTime = time.Now().Format(time.DateTime)
+		task.StartTime = time.Now().Format("2006-01-02 15:04:05")
 		go ExecuteTask(task)
 		logrus.Warnf("Task %s is scheduled with a past time. Executing immediately.", task.ID)
 		return nil

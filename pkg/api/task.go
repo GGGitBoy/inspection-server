@@ -89,6 +89,24 @@ func CreateTask() http.Handler {
 			return
 		}
 
+		tasks, err := db.ListTask()
+		if err != nil {
+			logrus.Errorf("Failed to list tasks: %v", err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
+
+		for _, t := range tasks {
+			if task.Name == t.Name {
+				if _, err := rw.Write([]byte("该名称已存在")); err != nil {
+					logrus.Errorf("Failed to write creation response: %v", err)
+					common.HandleError(rw, http.StatusInternalServerError, err)
+					return
+				}
+				return
+			}
+		}
+
 		task.ID = common.GetUUID()
 		task.State = "计划中"
 		if task.TemplateID == "" {

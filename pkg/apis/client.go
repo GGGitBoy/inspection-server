@@ -7,9 +7,9 @@ import (
 )
 
 type Client struct {
-	DynamicClient *dynamic.DynamicClient `json:"dynamic_client"`
-	Clientset     *kubernetes.Clientset  `json:"clientset"`
-	Config        *restclient.Config     `json:"config"`
+	DynamicClient dynamic.Interface     `json:"dynamic_client"`
+	Clientset     *kubernetes.Clientset `json:"clientset"`
+	Config        *restclient.Config    `json:"config"`
 }
 
 func NewClients() map[string]*Client {
