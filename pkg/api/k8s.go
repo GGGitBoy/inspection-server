@@ -176,7 +176,7 @@ func GetResource() http.Handler {
 			})
 		}
 
-		cronJobs, err := kubernetesClient.Clientset.BatchV1().CronJobs("").List(context.TODO(), metav1.ListOptions{})
+		cronJobs, err := kubernetesClient.Clientset.BatchV1beta1().CronJobs("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to list cronjobs for cluster %s: %v", clusterID, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
