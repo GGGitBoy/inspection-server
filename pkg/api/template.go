@@ -98,11 +98,7 @@ func CreateTemplate() http.Handler {
 
 		for _, t := range templates {
 			if template.Name == t.Name {
-				if _, err := rw.Write([]byte("该名称已存在")); err != nil {
-					logrus.Errorf("Failed to write creation response: %v", err)
-					common.HandleError(rw, http.StatusInternalServerError, err)
-					return
-				}
+				common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("该名称已存在"))
 				return
 			}
 		}

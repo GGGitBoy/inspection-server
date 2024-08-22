@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/apis"
@@ -98,11 +99,7 @@ func CreateTask() http.Handler {
 
 		for _, t := range tasks {
 			if task.Name == t.Name {
-				if _, err := rw.Write([]byte("该名称已存在")); err != nil {
-					logrus.Errorf("Failed to write creation response: %v", err)
-					common.HandleError(rw, http.StatusInternalServerError, err)
-					return
-				}
+				common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("该名称已存在"))
 				return
 			}
 		}
