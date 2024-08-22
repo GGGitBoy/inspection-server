@@ -1,4 +1,4 @@
-FROM registry.suse.com/bci/golang:1.22
+FROM registry.suse.com/bci/golang:1.19
 
 ENV DAPPER_ENV REPO TAG DRONE_TAG
 ENV DAPPER_SOURCE /go/src/github.com/cnrancher/inspection-server/
