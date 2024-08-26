@@ -163,7 +163,7 @@ func DeleteTemplate() http.Handler {
 		for _, t := range tasks {
 			if t.TemplateID == templateID {
 				logrus.Warnf("Template deletion failed: Template with ID %s is used in task %s", templateID, t.Name)
-				rw.Write([]byte(fmt.Sprintf("该通知在被巡检任务 %s 使用无法删除", t.Name)))
+				common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("该通知在被巡检任务 %s 使用无法删除", t.Name))
 				return
 			}
 		}

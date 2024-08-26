@@ -1,7 +1,6 @@
 package db
 
 import (
-	"database/sql"
 	"encoding/json"
 	"inspection-server/pkg/apis"
 	"log"
@@ -26,13 +25,8 @@ func GetTemplate(templateID string) (*apis.Template, error) {
 	template := apis.NewTemplate()
 	err = row.Scan(&id, &name, &data)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			log.Printf("No matching template found for ID: %s", templateID)
-			return nil, nil
-		} else {
-			log.Printf("Error scanning template row: %v", err)
-			return nil, err
-		}
+		log.Printf("Error scanning template row: %v", err)
+		return nil, err
 	}
 
 	var dataKubernetesConfig []*apis.KubernetesConfig

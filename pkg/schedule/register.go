@@ -46,7 +46,7 @@ func Register() error {
 
 func AddSchedule(task *apis.Task) error {
 	var err error
-	if task.Mode == "计划任务" {
+	if task.Mode == "计划任务" && (task.State == "计划中" || task.State == "巡检中") {
 		err = AddTimeTask(task)
 	} else if task.Mode == "周期任务" {
 		err = AddCornTask(task)

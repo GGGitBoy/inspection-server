@@ -1,7 +1,6 @@
 package db
 
 import (
-	"database/sql"
 	"inspection-server/pkg/apis"
 	"log"
 )
@@ -24,10 +23,6 @@ func GetTask(ID string) (*apis.Task, error) {
 	task := apis.NewTask()
 	err = row.Scan(&task.ID, &task.Name, &task.StartTime, &task.EndTime, &task.Cron, &task.State, &task.Rating, &task.ReportID, &task.TemplateID, &task.NotifyID, &task.TaskID, &task.Mode, &task.ErrMessage)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			log.Printf("No matching task found for ID: %s", ID)
-			return nil, nil
-		}
 		log.Printf("Error scanning task row: %v", err)
 		return nil, err
 	}

@@ -1,7 +1,6 @@
 package db
 
 import (
-	"database/sql"
 	"inspection-server/pkg/apis"
 	"log"
 )
@@ -21,10 +20,6 @@ func GetNotify(notifyID string) (*apis.Notify, error) {
 	notify := apis.NewNotify()
 	err = row.Scan(&id, &name, &appID, &appSecret)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			log.Printf("No notify found with ID: %s", notifyID)
-			return nil, nil // Return nil, nil to indicate no result
-		}
 		log.Printf("Error scanning row: %v", err)
 		return nil, err
 	}

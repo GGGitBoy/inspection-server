@@ -18,7 +18,6 @@ func AddTimeTask(task *apis.Task) error {
 	duration := time.Until(startTime)
 	logrus.Infof("Task %s will execute after %.2f minutes", task.ID, duration.Minutes())
 	if duration <= 0 {
-		task.StartTime = time.Now().Format("2006-01-02 15:04:05")
 		go ExecuteTask(task)
 		logrus.Warnf("Task %s is scheduled with a past time. Executing immediately.", task.ID)
 		return nil

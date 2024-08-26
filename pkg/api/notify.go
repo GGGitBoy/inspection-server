@@ -155,13 +155,9 @@ func DeleteNotify() http.Handler {
 		}
 
 		for _, t := range tasks {
-			if t.ID == notifyID {
-				msg := fmt.Sprintf("该通知在被巡检任务 %s 使用无法删除", t.Name)
-				logrus.Warnf(msg)
-				if _, err := rw.Write([]byte(msg)); err != nil {
-					logrus.Errorf("Failed to write task usage response: %v", err)
-					common.HandleError(rw, http.StatusInternalServerError, err)
-				}
+			if t.NotifyID == notifyID {
+				logrus.Errorf("该通知在被巡检任务 %s 使用无法删除", t.Name)
+				common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("该通知在被巡检任务 %s 使用无法删除", t.Name))
 				return
 			}
 		}
@@ -196,10 +192,6 @@ func TestNotify() http.Handler {
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
-
-		fmt.Println(string(body))
-		fmt.Println(notify.AppID)
-		fmt.Println(notify.AppSecret)
 
 		message := "测试成功"
 		err = send.Notify(notify.AppID, notify.AppSecret, common.SendTestPDFName, common.SendTestPDFPath, message)

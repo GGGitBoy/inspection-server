@@ -222,15 +222,24 @@ func Register() error {
 	}
 
 	template = &apis.Template{
-		ID:               common.GetUUID(),
+		ID:               "Default",
 		Name:             "Default",
 		KubernetesConfig: kubernetesConfig,
 	}
 
-	log.Println("Creating template in the database...")
-	if err := db.CreateTemplate(template); err != nil {
-		log.Printf("Failed to create template: %v\n", err)
-		return fmt.Errorf("failed to create template: %w", err)
+	_, err = db.GetTemplate("Default")
+	if err != nil {
+		log.Println("Creating template in the database...")
+		if err := db.CreateTemplate(template); err != nil {
+			log.Printf("Failed to create template: %v\n", err)
+			return fmt.Errorf("failed to create template: %w", err)
+		}
+	} else {
+		log.Println("Updating template in the database...")
+		if err := db.UpdateTemplate(template); err != nil {
+			log.Printf("Failed to update template: %v\n", err)
+			return fmt.Errorf("failed to update template: %w", err)
+		}
 	}
 
 	log.Println("Template registration completed successfully.")

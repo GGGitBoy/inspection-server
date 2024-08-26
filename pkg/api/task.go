@@ -108,7 +108,7 @@ func CreateTask() http.Handler {
 		task.State = "计划中"
 		if task.TemplateID == "" {
 			logrus.Warnf("Task creation failed: No template associated with the task")
-			rw.Write([]byte("该计划没有对应的模版"))
+			common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("该计划没有对应的模版"))
 			return
 		}
 
@@ -146,7 +146,7 @@ func DeleteTask() http.Handler {
 
 		if task.State == "巡检中" {
 			logrus.Warnf("Task deletion failed: Task with ID %s is currently in progress", taskID)
-			rw.Write([]byte("巡检中的计划不能删除"))
+			common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("巡检中的计划不能删除"))
 			return
 		}
 

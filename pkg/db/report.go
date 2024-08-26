@@ -1,7 +1,6 @@
 package db
 
 import (
-	"database/sql"
 	"encoding/json"
 	"inspection-server/pkg/apis"
 	"log"
@@ -75,10 +74,6 @@ func GetReport(reportID string) (*apis.Report, error) {
 	report := apis.NewReport()
 	err = row.Scan(&id, &name, &rating, &reportTime, &data)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			log.Printf("No matching data found for report ID: %s", reportID)
-			return nil, nil
-		}
 		log.Printf("Error scanning row: %v", err)
 		return nil, err
 	}
