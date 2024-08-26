@@ -12,7 +12,9 @@ import (
 
 func Notify(appID, appSecret, fileName, filePath, message string) error {
 	// 创建 Client
-	client := lark.NewClient(appID, appSecret)
+	client := lark.NewClient(appID, appSecret, func(config *larkcore.Config) {
+		config.EnableTokenCache = false
+	})
 
 	// 打开文件
 	file, err := os.Open(filePath)
