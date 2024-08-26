@@ -197,6 +197,10 @@ func TestNotify() http.Handler {
 			return
 		}
 
+		fmt.Println(string(body))
+		fmt.Println(notify.AppID)
+		fmt.Println(notify.AppSecret)
+
 		message := "测试成功"
 		err = send.Notify(notify.AppID, notify.AppSecret, common.SendTestPDFName, common.SendTestPDFPath, message)
 		if err != nil {
