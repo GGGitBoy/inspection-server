@@ -2,18 +2,51 @@ package send
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
+	larkauth "github.com/larksuite/oapi-sdk-go/v3/service/auth/v3"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	"github.com/sirupsen/logrus"
+	"net/http"
 	"os"
 )
 
 func Notify(appID, appSecret, fileName, filePath, message string) error {
 	// 创建 Client
-	client := lark.NewClient(appID, appSecret, func(config *larkcore.Config) {
-		config.EnableTokenCache = false
+	client := lark.NewClient(appID, appSecret, lark.WithEnableTokenCache(false))
+
+	getTokenReq := larkauth.NewInternalAppAccessTokenReqBuilder().
+		Body(larkauth.NewInternalAppAccessTokenReqBodyBuilder().
+			AppId(appID).
+			AppSecret(appSecret).
+			Build()).
+		Build()
+
+	getTokenResp, err := client.Auth.AppAccessToken.Internal(context.Background(), getTokenReq)
+	if err != nil {
+		logrus.Errorf("Error get token in Lark: %v", err)
+		return fmt.Errorf("failed to get token in Lark: %v", err)
+	}
+
+	if !getTokenResp.Success() {
+		logrus.Errorf("Server error get token: Code=%d, Msg=%s, RequestID=%s", getTokenResp.Code, getTokenResp.Msg, getTokenResp.RequestId())
+		return fmt.Errorf("server error get token: Code=%d, Msg=%s, RequestID=%s", getTokenResp.Code, getTokenResp.Msg, getTokenResp.RequestId())
+	}
+
+	logrus.Debug("Token got successfully: %s", larkcore.Prettify(getTokenResp))
+
+	appAccessTokenResp := larkcore.AppAccessTokenResp{}
+	err = json.Unmarshal(getTokenResp.RawBody, &appAccessTokenResp)
+	if err != nil {
+		logrus.Errorf("Failed to unmarshal request body: %v", err)
+		return fmt.Errorf("Failed to unmarshal request body: %v\n", err)
+	}
+
+	// 添加 token 到请求头
+	requestOptionFunc := larkcore.WithHeaders(http.Header{
+		"Authorization": []string{fmt.Sprintf("Bearer %s", appAccessTokenResp.AppAccessToken)},
 	})
 
 	// 打开文件
@@ -38,7 +71,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 		Build()
 
 	// 发起文件上传请求
-	createFileResp, err := client.Im.File.Create(context.Background(), createFileReq)
+	createFileResp, err := client.Im.File.Create(context.Background(), createFileReq, requestOptionFunc)
 	if err != nil {
 		logrus.Errorf("Error creating file in Lark: %v", err)
 		return fmt.Errorf("failed to create file in Lark: %v", err)
@@ -50,7 +83,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 		return fmt.Errorf("server error creating file: Code=%d, Msg=%s, RequestID=%s", createFileResp.Code, createFileResp.Msg, createFileResp.RequestId())
 	}
 
-	logrus.Infof("File created successfully: %s", larkcore.Prettify(createFileResp))
+	logrus.Debug("File created successfully: %s", larkcore.Prettify(createFileResp))
 
 	// 创建列表聊天请求对象
 	listChatReq := larkim.NewListChatReqBuilder().
@@ -59,7 +92,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 		Build()
 
 	// 发起列表聊天请求
-	listChatResp, err := client.Im.Chat.List(context.Background(), listChatReq)
+	listChatResp, err := client.Im.Chat.List(context.Background(), listChatReq, requestOptionFunc)
 	if err != nil {
 		logrus.Errorf("Error listing chats in Lark: %v", err)
 		return fmt.Errorf("failed to list chats in Lark: %v", err)
@@ -71,7 +104,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 		return fmt.Errorf("server error listing chats: Code=%d, Msg=%s, RequestID=%s", listChatResp.Code, listChatResp.Msg, listChatResp.RequestId())
 	}
 
-	logrus.Infof("Chats listed successfully: %s", larkcore.Prettify(listChatResp))
+	logrus.Debug("Chats listed successfully: %s", larkcore.Prettify(listChatResp))
 
 	// 循环发送消息到每个聊天
 	for _, i := range listChatResp.Data.Items {
@@ -85,7 +118,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 				Build()).
 			Build()
 
-		createMessageResp, err := client.Im.Message.Create(context.Background(), createMessageReq)
+		createMessageResp, err := client.Im.Message.Create(context.Background(), createMessageReq, requestOptionFunc)
 		if err != nil {
 			logrus.Errorf("Error sending text message to chat %s: %v", *i.ChatId, err)
 			return fmt.Errorf("failed to send text message to chat %s: %v", *i.ChatId, err)
@@ -108,7 +141,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 				Build()).
 			Build()
 
-		createFileMessageResp, err := client.Im.Message.Create(context.Background(), createFileMessageReq)
+		createFileMessageResp, err := client.Im.Message.Create(context.Background(), createFileMessageReq, requestOptionFunc)
 		if err != nil {
 			logrus.Errorf("Error sending file message to chat %s: %v", *i.ChatId, err)
 			return fmt.Errorf("failed to send file message to chat %s: %v", *i.ChatId, err)
