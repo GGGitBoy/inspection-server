@@ -51,7 +51,7 @@ spec:
 {{- end }}
 {{- if .Values.SetContainerd }}
       - hostPath:
-          path: /var/run/{{ .Values.Provider }}/containerd/containerd.sock
+          path: /var/run/k3s/containerd/containerd.sock
           type: ""
         name: containerd-socket
 {{- end }}
