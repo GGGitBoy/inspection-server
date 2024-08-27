@@ -35,7 +35,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 		return fmt.Errorf("server error get token: Code=%d, Msg=%s, RequestID=%s", getTokenResp.Code, getTokenResp.Msg, getTokenResp.RequestId())
 	}
 
-	logrus.Debug("Token got successfully: %s", larkcore.Prettify(getTokenResp))
+	logrus.Debugf("Token got successfully: %s", larkcore.Prettify(getTokenResp))
 
 	appAccessTokenResp := larkcore.AppAccessTokenResp{}
 	err = json.Unmarshal(getTokenResp.RawBody, &appAccessTokenResp)
@@ -83,7 +83,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 		return fmt.Errorf("server error creating file: Code=%d, Msg=%s, RequestID=%s", createFileResp.Code, createFileResp.Msg, createFileResp.RequestId())
 	}
 
-	logrus.Debug("File created successfully: %s", larkcore.Prettify(createFileResp))
+	logrus.Debugf("File created successfully: %s", larkcore.Prettify(createFileResp))
 
 	// 创建列表聊天请求对象
 	listChatReq := larkim.NewListChatReqBuilder().
@@ -104,7 +104,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 		return fmt.Errorf("server error listing chats: Code=%d, Msg=%s, RequestID=%s", listChatResp.Code, listChatResp.Msg, listChatResp.RequestId())
 	}
 
-	logrus.Debug("Chats listed successfully: %s", larkcore.Prettify(listChatResp))
+	logrus.Debugf("Chats listed successfully: %s", larkcore.Prettify(listChatResp))
 
 	// 循环发送消息到每个聊天
 	for _, i := range listChatResp.Data.Items {
