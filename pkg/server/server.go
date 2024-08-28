@@ -29,6 +29,7 @@ func Start() http.Handler {
 	router.Methods(http.MethodPost).Path("/v1/templates/create").Handler(logMiddleware(api.CreateTemplate()))
 	router.Methods(http.MethodPut).Path("/v1/templates/update").Handler(logMiddleware(api.UpdateTemplate()))
 	router.Methods(http.MethodDelete).Path("/v1/templates/delete/{id}").Handler(logMiddleware(api.DeleteTemplate()))
+	router.Methods(http.MethodGet).Path("/v1/templates/refresh/default").Handler(logMiddleware(api.RefreshDefaultTemplate()))
 
 	router.Methods(http.MethodGet).Path("/v1/notify/get/{id}").Handler(logMiddleware(api.GetNotify()))
 	router.Methods(http.MethodGet).Path("/v1/notify/list").Handler(logMiddleware(api.ListNotify()))

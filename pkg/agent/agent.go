@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"context"
+	"fmt"
 	detector "github.com/rancher/kubernetes-provider-detector"
 	detectorProviders "github.com/rancher/kubernetes-provider-detector/providers"
 	"github.com/sirupsen/logrus"
@@ -16,6 +17,8 @@ import (
 	"sigs.k8s.io/yaml"
 	"text/template"
 )
+
+var image = "cnrancher/inspection-agent:v1.0.0"
 
 func Register() error {
 	logrus.Infof("Starting registration of inspection agents")
@@ -206,12 +209,17 @@ func ApplyDaemonSet(clientset *kubernetes.Clientset) error {
 		return err
 	}
 
+	if common.SystemDefaultRegistry != "" {
+		image = fmt.Sprintf("%s/%s", common.SystemDefaultRegistry, image)
+	}
+
 	var rendered bytes.Buffer
 	err = tmpl.Execute(&rendered, map[string]interface{}{
 		"Values": Values{
 			SetDocker:     setDocker,
 			SetContainerd: setContainerd,
 			Provider:      provider,
+			Image:         image,
 		},
 	})
 	if err != nil {
@@ -237,4 +245,5 @@ type Values struct {
 	SetDocker     bool
 	SetContainerd bool
 	Provider      string
+	Image         string
 }

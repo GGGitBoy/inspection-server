@@ -1,7 +1,11 @@
 package send
 
 import (
+	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	lark "github.com/larksuite/oapi-sdk-go/v3"
@@ -9,11 +13,104 @@ import (
 	larkauth "github.com/larksuite/oapi-sdk-go/v3/service/auth/v3"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	"github.com/sirupsen/logrus"
+	"io"
 	"net/http"
 	"os"
+	"time"
 )
 
+type Message struct {
+	MsgType   string  `json:"msg_type"`
+	Content   Content `json:"content"`
+	Timestamp int64   `json:"timestamp"`
+	Sign      string  `json:"sign"`
+}
+
+type Content struct {
+	Text string `json:"text"`
+}
+
+type Response struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+}
+
+func Webhook(webhookURL, secret, text string) error {
+	fmt.Println("Start webhook send...")
+	timestamp := time.Now().Unix()
+	sign, err := GenSign(secret, timestamp)
+	if err != nil {
+		logrus.Errorf("Failed to get sign: %v", err)
+		return fmt.Errorf("Failed to get sign: %v\n", err)
+	}
+
+	message := Message{
+		MsgType: "text",
+		Content: Content{
+			Text: text,
+		},
+		Timestamp: int64(timestamp),
+		Sign:      sign,
+	}
+
+	// 将消息结构体转为 JSON
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		logrus.Errorf("Failed to marshal message: %v", err)
+		return fmt.Errorf("Failed to marshal message: %v\n", err)
+	}
+
+	// 发送 POST 请求到飞书 Webhook
+	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(messageBytes))
+	if err != nil {
+		logrus.Errorf("Failed to send message: %v", err)
+		return fmt.Errorf("Failed to send message: %v\n", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		logrus.Errorf("Failed to send message, status code: %d\n", resp.StatusCode)
+		return fmt.Errorf("Failed to send message, status code: %d\n", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logrus.Errorf("Failed to read resp body: %v\n", err)
+		return fmt.Errorf("Failed to read resp body: %v\n", err)
+	}
+
+	response := &Response{}
+	err = json.Unmarshal(body, response)
+	if err != nil {
+		logrus.Errorf("Failed to unmarshal resp body: %v\n", err)
+		return fmt.Errorf("Failed to unmarshal resp body: %v\n", err)
+	}
+
+	if response.Code != 0 {
+		logrus.Errorf("Failed to send message, code: %d msg: %s \n", response.Code, response.Msg)
+		return fmt.Errorf("Failed to send message, code: %d msg: %s \n", response.Code, response.Msg)
+	}
+
+	fmt.Println("Message sent successfully!")
+	return nil
+}
+
+func GenSign(secret string, timestamp int64) (string, error) {
+	stringToSign := fmt.Sprintf("%v", timestamp) + "\n" + secret
+
+	var data []byte
+	h := hmac.New(sha256.New, []byte(stringToSign))
+	_, err := h.Write(data)
+	if err != nil {
+		return "", err
+	}
+
+	signature := base64.StdEncoding.EncodeToString(h.Sum(nil))
+	return signature, nil
+}
+
 func Notify(appID, appSecret, fileName, filePath, message string) error {
+	fmt.Println("Start notify send...")
 	// 创建 Client
 	client := lark.NewClient(appID, appSecret, lark.WithEnableTokenCache(false))
 

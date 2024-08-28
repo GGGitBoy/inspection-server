@@ -3,11 +3,11 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"log"
-
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 	"inspection-server/pkg/common"
+	"log"
+	"time"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
             name TEXT,
             rating TEXT, 
             report_time TEXT,
-            data TEXT
+            data LONGTEXT
         );`,
 		`CREATE TABLE IF NOT EXISTS task (
             id VARCHAR(255) NOT NULL PRIMARY KEY,
@@ -37,15 +37,19 @@ var (
 		`CREATE TABLE IF NOT EXISTS template (
             id VARCHAR(255) NOT NULL PRIMARY KEY,
             name TEXT,
-            data TEXT
+            data LONGTEXT
         );`,
 		`CREATE TABLE IF NOT EXISTS notify (
             id VARCHAR(255) NOT NULL PRIMARY KEY,
             name TEXT,
             app_id TEXT,
-            app_secret TEXT
+            app_secret TEXT,
+            webhook_url TEXT,
+			secret TEXT
         );`,
 	}
+
+	DB *sql.DB
 )
 
 // Register creates tables if they do not exist
@@ -55,11 +59,6 @@ func Register() error {
 		log.Printf("Error getting database connection: %v", err)
 		return err
 	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
 
 	for _, table := range sqlTables {
 		_, err = DB.Exec(table)
@@ -75,7 +74,6 @@ func Register() error {
 
 // GetDB returns a database connection based on configuration
 func GetDB() (*sql.DB, error) {
-	var DB *sql.DB
 	var err error
 
 	if common.MySQL == "true" {
@@ -94,6 +92,10 @@ func GetDB() (*sql.DB, error) {
 		}
 		log.Println("Connected to SQLite database successfully")
 	}
+
+	DB.SetMaxOpenConns(25)                 // 最大打开的连接数
+	DB.SetMaxIdleConns(25)                 // 最大空闲连接数
+	DB.SetConnMaxLifetime(5 * time.Minute) // 连接最长存活时间
 
 	// Test database connection
 	if err := DB.Ping(); err != nil {

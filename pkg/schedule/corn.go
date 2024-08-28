@@ -13,11 +13,6 @@ func AddCornTask(task *apis.Task) error {
 	TaskMutex.Lock()
 	defer TaskMutex.Unlock()
 
-	//_, err := cron.ParseStandard(task.Cron)
-	//if err != nil {
-	//	return fmt.Errorf("Invalid cron expression: %v\n", err)
-	//}
-
 	entryID, err := CronClient.AddFunc(task.Cron, func() {
 		now := time.Now().Format("2006-01-02 15:04:05")
 		newTask := &apis.Task{

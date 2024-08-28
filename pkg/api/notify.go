@@ -27,6 +27,7 @@ func GetNotify() http.Handler {
 		}
 
 		notify.AppSecret = ""
+		notify.Secret = ""
 		jsonData, err := json.MarshalIndent(notify, "", "\t")
 		if err != nil {
 			logrus.Errorf("Failed to marshal notify with ID %s: %v", notifyID, err)
@@ -128,6 +129,20 @@ func UpdateNotify() http.Handler {
 			return
 		}
 
+		notifys, err := db.ListNotify()
+		if err != nil {
+			logrus.Errorf("Failed to list notifies: %v", err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
+
+		for _, n := range notifys {
+			if notify.Name == n.Name && notify.ID != n.ID {
+				common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("该名称已存在"))
+				return
+			}
+		}
+
 		err = db.UpdateNotify(notify)
 		if err != nil {
 			logrus.Errorf("Failed to update notify: %v", err)
@@ -194,11 +209,21 @@ func TestNotify() http.Handler {
 		}
 
 		message := "测试成功"
-		err = send.Notify(notify.AppID, notify.AppSecret, common.SendTestPDFName, common.SendTestPDFPath, message)
-		if err != nil {
-			logrus.Errorf("Failed to send test notification: %v", err)
-			common.HandleError(rw, http.StatusInternalServerError, err)
-			return
+
+		if notify.WebhookURL != "" && notify.Secret != "" {
+			err = send.Webhook(notify.WebhookURL, notify.Secret, message)
+			if err != nil {
+				logrus.Errorf("Failed to send test notification: %v", err)
+				common.HandleError(rw, http.StatusInternalServerError, err)
+				return
+			}
+		} else {
+			err = send.Notify(notify.AppID, notify.AppSecret, common.SendTestPDFName, common.SendTestPDFPath, message)
+			if err != nil {
+				logrus.Errorf("Failed to send test notification: %v", err)
+				common.HandleError(rw, http.StatusInternalServerError, err)
+				return
+			}
 		}
 
 		if _, err := rw.Write([]byte("测试成功")); err != nil {

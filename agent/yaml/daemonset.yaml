@@ -13,9 +13,9 @@ spec:
         name: inspection-agent
     spec:
       containers:
-        - image: cnrancher/inspection-agent:v1.0.0
+        - name: inspection-agent-container
+          image: {{ .Values.Image }}
           imagePullPolicy: Always
-          name: inspection-agent-container
           securityContext:
             allowPrivilegeEscalation: true
             privileged: true

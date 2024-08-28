@@ -37,17 +37,19 @@ func FullScreenshot(print *Print) error {
 
 	path, ok := launcher.LookPath()
 	if !ok {
-		return fmt.Errorf("Failed to find browser path")
+		return fmt.Errorf("Failed to find browser path\n")
 	}
 	u := launcher.New().Bin(path).MustLaunch()
-	browser := rod.New().ControlURL(u).MustConnect()
+	browser := rod.New().ControlURL(u).MustConnect().MustIgnoreCertErrors(true)
 	defer browser.MustClose()
 
 	log.Println("Starting page load")
 	page := browser.MustPage(print.URL)
-	page.MustWaitLoad()
+	page.Timeout(15 * time.Minute).MustWaitLoad()
 
 	time.Sleep(time.Duration(waitSecond) * time.Second)
+
+	log.Println("Starting page must eval")
 
 	page.MustEval(`() => {
 		var totalHeight = 0;
@@ -65,7 +67,7 @@ func FullScreenshot(print *Print) error {
 	err := page.Wait(rod.Eval(`() => document.body.scrollHeight <= (window.scrollY + window.innerHeight)`))
 	if err != nil {
 		log.Printf("Error while waiting for page scroll completion: %v", err)
-		return err
+		return fmt.Errorf("Error while waiting for page scroll completion: %v\n", err)
 	}
 
 	metrics := page.MustEval(`() => ({
@@ -80,20 +82,20 @@ func FullScreenshot(print *Print) error {
 	screenshot, err := page.Screenshot(false, nil)
 	if err != nil {
 		log.Fatalf("Failed to capture screenshot: %v", err)
-		return err
+		return fmt.Errorf("Failed to capture screenshot: %v\n", err)
 	}
 	log.Println("Screenshot captured successfully")
 
 	err = common.WriteFile(common.PrintShotPath, screenshot)
 	if err != nil {
 		log.Fatalf("Failed to save screenshot: %v", err)
-		return err
+		return fmt.Errorf("Failed to save screenshot: %v\n", err)
 	}
 
 	err = ToPrintPDF(print)
 	if err != nil {
 		log.Fatalf("Failed to generate PDF: %v", err)
-		return err
+		return fmt.Errorf("Failed to generate PDF: %v\n", err)
 	}
 
 	return nil

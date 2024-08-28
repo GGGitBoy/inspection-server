@@ -211,10 +211,19 @@ func Inspection(task *apis.Task) error {
 			return fmt.Errorf("Failed to get notification details for NotifyID %s: %v\n", task.NotifyID, err)
 		}
 
-		err = send.Notify(notify.AppID, notify.AppSecret, common.GetReportFileName(p.ReportTime), common.PrintPDFPath+common.GetReportFileName(p.ReportTime), sb.String())
-		if err != nil {
-			return fmt.Errorf("Failed to send notification: %v\n", err)
+		if notify.WebhookURL != "" && notify.Secret != "" {
+			sb.WriteString(fmt.Sprintf(`该巡检报告的访问地址为: %s/api/v1/namespaces/cattle-inspection-system/services/http:access-inspection:80/proxy/#/inspection/result/%s\n`, common.ServerURL, report.ID))
+			err = send.Webhook(notify.WebhookURL, notify.Secret, sb.String())
+			if err != nil {
+				return fmt.Errorf("Failed to send notification: %v\n", err)
+			}
+		} else {
+			err = send.Notify(notify.AppID, notify.AppSecret, common.GetReportFileName(p.ReportTime), common.PrintPDFPath+common.GetReportFileName(p.ReportTime), sb.String())
+			if err != nil {
+				return fmt.Errorf("Failed to send notification: %v\n", err)
+			}
 		}
+
 	}
 
 	task.EndTime = time.Now().Format("2006-01-02 15:04:05")

@@ -10,12 +10,13 @@ var (
 	ServerURL   = getEnv("SERVER_URL", "")
 	BearerToken = getEnv("BEARER_TOKEN", "")
 
-	MySQL         = getEnv("MY_SQL", "")
-	MySQLUser     = getEnv("MY_SQL_USER", "")
-	MySQLPassword = getEnv("MY_SQL_PASSWORD", "")
-	MySQLHost     = getEnv("MY_SQL_HOST", "")
-	MySQLPort     = getEnv("MY_SQL_PORT", "")
-	MySQLDB       = getEnv("MY_SQL_DB", "")
+	MySQL                 = getEnv("MY_SQL", "")
+	MySQLUser             = getEnv("MY_SQL_USER", "")
+	MySQLPassword         = getEnv("MY_SQL_PASSWORD", "")
+	MySQLHost             = getEnv("MY_SQL_HOST", "")
+	MySQLPort             = getEnv("MY_SQL_PORT", "")
+	MySQLDB               = getEnv("MY_SQL_DB", "")
+	SystemDefaultRegistry = getEnv("SYSTEM_DEFAULT_REGISTRY", "")
 
 	SQLiteName          = "sqlite.db"
 	AgentName           = "inspection-agent"

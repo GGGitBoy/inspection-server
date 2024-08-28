@@ -8,6 +8,7 @@ import (
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
 	"inspection-server/pkg/db"
+	"inspection-server/pkg/template"
 	"io"
 	"net/http"
 )
@@ -91,7 +92,7 @@ func CreateTemplate() http.Handler {
 
 		templates, err := db.ListTemplate()
 		if err != nil {
-			logrus.Errorf("Failed to list tasks: %v", err)
+			logrus.Errorf("Failed to list templates: %v", err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
@@ -135,6 +136,26 @@ func UpdateTemplate() http.Handler {
 			return
 		}
 
+		if template.ID == "Default" {
+			logrus.Errorf("Failed to update template %s", template.ID)
+			common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("Failed to update template %s\n", template.ID))
+			return
+		}
+
+		templates, err := db.ListTemplate()
+		if err != nil {
+			logrus.Errorf("Failed to list templates: %v", err)
+			common.HandleError(rw, http.StatusInternalServerError, err)
+			return
+		}
+
+		for _, t := range templates {
+			if template.Name == t.Name && template.ID != t.ID {
+				common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("该名称已存在"))
+				return
+			}
+		}
+
 		err = db.UpdateTemplate(template)
 		if err != nil {
 			logrus.Errorf("Failed to update template with ID %s: %v", template.ID, err)
@@ -152,6 +173,12 @@ func DeleteTemplate() http.Handler {
 		vars := mux.Vars(req)
 		templateID := vars["id"]
 		logrus.Infof("Received request to delete template with ID: %s", templateID)
+
+		if templateID == "Default" {
+			logrus.Errorf("Failed to delete template %s", templateID)
+			common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("Failed to delete template %s\n", templateID))
+			return
+		}
 
 		tasks, err := db.ListTask()
 		if err != nil {
@@ -177,5 +204,20 @@ func DeleteTemplate() http.Handler {
 
 		rw.Write([]byte("删除完成"))
 		logrus.Infof("Successfully deleted template with ID: %s", templateID)
+	})
+}
+
+func RefreshDefaultTemplate() http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		logrus.Info("Received request to refresh template with Default")
+
+		err := template.Register()
+		if err != nil {
+			logrus.Errorf("Failed to register template: %v", err)
+			common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("Failed to register template: %v\n", err))
+			return
+		}
+
+		rw.Write([]byte("更新完成"))
 	})
 }

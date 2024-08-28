@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
@@ -11,6 +12,7 @@ import (
 	"inspection-server/pkg/schedule"
 	"io"
 	"net/http"
+	"path/filepath"
 )
 
 func GetTask() http.Handler {
@@ -112,6 +114,15 @@ func CreateTask() http.Handler {
 			return
 		}
 
+		if task.Cron != "" {
+			_, err := cron.ParseStandard(task.Cron)
+			if err != nil {
+				logrus.Errorf("Invalid cron expression: %v\n", err)
+				common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("Invalid cron expression: %v\n", err))
+				return
+			}
+		}
+
 		err = db.CreateTask(task)
 		if err != nil {
 			logrus.Errorf("Failed to create task with ID %s: %v", task.ID, err)
@@ -144,31 +155,115 @@ func DeleteTask() http.Handler {
 			return
 		}
 
-		if task.State == "巡检中" {
-			logrus.Warnf("Task deletion failed: Task with ID %s is currently in progress", taskID)
-			common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("巡检中的计划不能删除"))
-			return
-		}
+		if task.Mode == "周期任务" && task.Cron != "" && task.TaskID == "" {
+			tasks, err := db.ListTask()
+			if err != nil {
+				logrus.Errorf("Failed to list tasks: %v", err)
+				common.HandleError(rw, http.StatusInternalServerError, err)
+				return
+			}
 
-		err = schedule.RemoveSchedule(task)
-		if err != nil {
-			logrus.Errorf("Failed to remove schedule for task with ID %s: %v", taskID, err)
-			common.HandleError(rw, http.StatusInternalServerError, err)
-			return
-		}
+			for _, t := range tasks {
+				if task.ID == t.TaskID {
+					if t.State == "巡检中" {
+						logrus.Warnf("Task deletion failed: Task with ID %s is currently in progress", t.ID)
+						common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("巡检中的计划不能删除"))
+						return
+					}
 
-		err = db.DeleteTask(task.ID)
-		if err != nil {
-			logrus.Errorf("Failed to delete task with ID %s: %v", taskID, err)
-			common.HandleError(rw, http.StatusInternalServerError, err)
-			return
-		}
+					err = schedule.RemoveSchedule(t)
+					if err != nil {
+						logrus.Errorf("Failed to remove schedule for task with ID %s: %v", t.ID, err)
+						common.HandleError(rw, http.StatusInternalServerError, err)
+						return
+					}
 
-		err = db.DeleteReport(task.ReportID)
-		if err != nil {
-			logrus.Errorf("Failed to delete report for task ID %s: %v", taskID, err)
-			common.HandleError(rw, http.StatusInternalServerError, err)
-			return
+					err = db.DeleteTask(t.ID)
+					if err != nil {
+						logrus.Errorf("Failed to delete task with ID %s: %v", t.ID, err)
+						common.HandleError(rw, http.StatusInternalServerError, err)
+						return
+					}
+
+					report, err := db.GetReport(t.ReportID)
+					if err != nil {
+						logrus.Errorf("Failed to get report with ID %s: %v", report.ID, err)
+						common.HandleError(rw, http.StatusInternalServerError, err)
+						return
+					}
+
+					filePath := filepath.Join(common.PrintPDFPath, common.GetReportFileName(report.Global.ReportTime))
+					err = common.DeleteFile(filePath)
+					if err != nil {
+						logrus.Errorf("Failed to delete report pdf file %s: %v", report.ID, err)
+						common.HandleError(rw, http.StatusInternalServerError, err)
+						return
+					}
+
+					err = db.DeleteReport(t.ReportID)
+					if err != nil {
+						logrus.Errorf("Failed to delete report for task ID %s: %v", t.ID, err)
+						common.HandleError(rw, http.StatusInternalServerError, err)
+						return
+					}
+				}
+			}
+
+			err = schedule.RemoveSchedule(task)
+			if err != nil {
+				logrus.Errorf("Failed to remove schedule for task with ID %s: %v", taskID, err)
+				common.HandleError(rw, http.StatusInternalServerError, err)
+				return
+			}
+
+			err = db.DeleteTask(task.ID)
+			if err != nil {
+				logrus.Errorf("Failed to delete task with ID %s: %v", taskID, err)
+				common.HandleError(rw, http.StatusInternalServerError, err)
+				return
+			}
+		} else if task.Mode == "计划任务" {
+			if task.State == "巡检中" {
+				logrus.Warnf("Task deletion failed: Task with ID %s is currently in progress", taskID)
+				common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("巡检中的计划不能删除"))
+				return
+			}
+
+			err = schedule.RemoveSchedule(task)
+			if err != nil {
+				logrus.Errorf("Failed to remove schedule for task with ID %s: %v", taskID, err)
+				common.HandleError(rw, http.StatusInternalServerError, err)
+				return
+			}
+
+			err = db.DeleteTask(task.ID)
+			if err != nil {
+				logrus.Errorf("Failed to delete task with ID %s: %v", taskID, err)
+				common.HandleError(rw, http.StatusInternalServerError, err)
+				return
+			}
+
+			report, err := db.GetReport(task.ReportID)
+			if err != nil {
+				logrus.Errorf("Failed to get report with ID %s: %v", report.ID, err)
+				common.HandleError(rw, http.StatusInternalServerError, err)
+				return
+			}
+
+			filePath := filepath.Join(common.PrintPDFPath, common.GetReportFileName(report.Global.ReportTime))
+			err = common.DeleteFile(filePath)
+			if err != nil {
+				logrus.Errorf("Failed to delete report pdf file %s: %v", report.ID, err)
+				common.HandleError(rw, http.StatusInternalServerError, err)
+				return
+			}
+
+			err = db.DeleteReport(task.ReportID)
+			if err != nil {
+				logrus.Errorf("Failed to delete report for task ID %s: %v", taskID, err)
+				common.HandleError(rw, http.StatusInternalServerError, err)
+				return
+			}
 		}
 
 		rw.Write([]byte("删除完成"))

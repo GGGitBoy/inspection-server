@@ -82,6 +82,12 @@ func main() {
 			Value:  "mysql",
 			Usage:  "Set mysql database.",
 		},
+		cli.StringFlag{
+			Name:   "systemDefaultRegistry",
+			EnvVar: "SYSTEM_DEFAULT_REGISTRY",
+			Value:  "",
+			Usage:  "Set system default registry.",
+		},
 	}
 
 	app.Action = func(ctx *cli.Context) error {

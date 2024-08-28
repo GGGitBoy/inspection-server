@@ -48,7 +48,9 @@ func AddSchedule(task *apis.Task) error {
 	var err error
 	if task.Mode == "计划任务" && (task.State == "计划中" || task.State == "巡检中") {
 		err = AddTimeTask(task)
-	} else if task.Mode == "周期任务" {
+	} else if task.Mode == "周期任务" && task.TaskID != "" && (task.State == "计划中" || task.State == "巡检中") {
+		err = AddTimeTask(task)
+	} else if task.Mode == "周期任务" && task.Cron != "" && task.TaskID == "" {
 		err = AddCornTask(task)
 	}
 
@@ -70,7 +72,7 @@ func RemoveSchedule(task *apis.Task) error {
 	var err error
 	if task.Mode == "计划任务" {
 		err = RemoveTimetask(task.ID)
-	} else if task.Mode == "周期任务" {
+	} else if task.Mode == "周期任务" && task.Cron != "" {
 		err = RemoveCorntask(task.ID)
 	}
 
@@ -105,6 +107,7 @@ func ExecuteTask(task *apis.Task) {
 		logrus.Errorf("Inspection failed for task %s: %v", task.ID, err)
 		var errMessage strings.Builder
 		errMessage.WriteString(fmt.Sprintf("巡检失败: %v\n", err))
+		task.EndTime = time.Now().Format("2006-01-02 15:04:05")
 		task.State = "巡检失败"
 		task.ErrMessage = errMessage.String()
 		updateErr := db.UpdateTask(task)

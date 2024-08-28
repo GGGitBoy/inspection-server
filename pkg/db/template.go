@@ -8,22 +8,11 @@ import (
 
 // GetTemplate retrieves a template from the database by templateID.
 func GetTemplate(templateID string) (*apis.Template, error) {
-	DB, err := GetDB()
-	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return nil, err
-	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
 	row := DB.QueryRow("SELECT id, name, data FROM template WHERE id = ? LIMIT 1", templateID)
 
 	var id, name, data string
 	template := apis.NewTemplate()
-	err = row.Scan(&id, &name, &data)
+	err := row.Scan(&id, &name, &data)
 	if err != nil {
 		log.Printf("Error scanning template row: %v", err)
 		return nil, err
@@ -48,17 +37,6 @@ func GetTemplate(templateID string) (*apis.Template, error) {
 
 // ListTemplate retrieves all templates from the database.
 func ListTemplate() ([]*apis.Template, error) {
-	DB, err := GetDB()
-	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return nil, err
-	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
 	rows, err := DB.Query("SELECT id, name, data FROM template")
 	if err != nil {
 		log.Printf("Error executing query: %v", err)
@@ -100,17 +78,6 @@ func ListTemplate() ([]*apis.Template, error) {
 
 // CreateTemplate inserts a new template into the database.
 func CreateTemplate(template *apis.Template) error {
-	DB, err := GetDB()
-	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return err
-	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
 	data, err := json.Marshal(template.KubernetesConfig)
 	if err != nil {
 		log.Printf("Error marshalling KubernetesConfig: %v", err)
@@ -149,17 +116,6 @@ func CreateTemplate(template *apis.Template) error {
 
 // UpdateTemplate updates an existing template in the database.
 func UpdateTemplate(template *apis.Template) error {
-	DB, err := GetDB()
-	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return err
-	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
 	data, err := json.Marshal(template.KubernetesConfig)
 	if err != nil {
 		log.Printf("Error marshalling KubernetesConfig: %v", err)
@@ -178,17 +134,6 @@ func UpdateTemplate(template *apis.Template) error {
 
 // DeleteTemplate removes a template from the database by templateID.
 func DeleteTemplate(templateID string) error {
-	DB, err := GetDB()
-	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return err
-	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
 	result, err := DB.Exec("DELETE FROM template WHERE id = ?", templateID)
 	if err != nil {
 		log.Printf("Error executing delete statement: %v", err)

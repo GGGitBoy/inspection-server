@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -56,6 +57,20 @@ func WriteFile(path string, data []byte) error {
 	}
 
 	log.Printf("Successfully wrote data to file at path: %s", path)
+	return nil
+}
+
+func DeleteFile(path string) error {
+	if FileExists(path) {
+		err := os.Remove(path)
+		if err != nil {
+			fmt.Printf("Failed to delete file path %s: %v\n", path, err)
+			return err
+		}
+
+		log.Printf("Successfully delete file at path: %s", path)
+	}
+
 	return nil
 }
 

@@ -7,21 +7,10 @@ import (
 
 // GetTask retrieves a task from the database by ID.
 func GetTask(ID string) (*apis.Task, error) {
-	DB, err := GetDB()
-	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return nil, err
-	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
 	row := DB.QueryRow("SELECT id, name, start_time, end_time, cron, state, rating, report_id, template_id, notify_id, task_id, mode, err_message FROM task WHERE id = ? LIMIT 1", ID)
 
 	task := apis.NewTask()
-	err = row.Scan(&task.ID, &task.Name, &task.StartTime, &task.EndTime, &task.Cron, &task.State, &task.Rating, &task.ReportID, &task.TemplateID, &task.NotifyID, &task.TaskID, &task.Mode, &task.ErrMessage)
+	err := row.Scan(&task.ID, &task.Name, &task.StartTime, &task.EndTime, &task.Cron, &task.State, &task.Rating, &task.ReportID, &task.TemplateID, &task.NotifyID, &task.TaskID, &task.Mode, &task.ErrMessage)
 	if err != nil {
 		log.Printf("Error scanning task row: %v", err)
 		return nil, err
@@ -33,17 +22,6 @@ func GetTask(ID string) (*apis.Task, error) {
 
 // ListTask retrieves all tasks from the database.
 func ListTask() ([]*apis.Task, error) {
-	DB, err := GetDB()
-	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return nil, err
-	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
 	rows, err := DB.Query("SELECT id, name, start_time, end_time, cron, state, rating, report_id, template_id, notify_id, task_id, mode, err_message FROM task")
 	if err != nil {
 		log.Printf("Error executing query: %v", err)
@@ -74,17 +52,6 @@ func ListTask() ([]*apis.Task, error) {
 
 // CreateTask inserts a new task into the database.
 func CreateTask(task *apis.Task) error {
-	DB, err := GetDB()
-	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return err
-	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
 	tx, err := DB.Begin()
 	if err != nil {
 		log.Printf("Error beginning transaction: %v", err)
@@ -117,18 +84,7 @@ func CreateTask(task *apis.Task) error {
 
 // UpdateTask updates an existing task in the database.
 func UpdateTask(task *apis.Task) error {
-	DB, err := GetDB()
-	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return err
-	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
-	_, err = DB.Exec("UPDATE task SET name = ?, start_time = ?, end_time = ?, cron = ?, state = ?, rating = ?, report_id = ?, template_id = ?, notify_id = ?, task_id = ?, mode = ?, err_message = ? WHERE id = ?", task.Name, task.StartTime, task.EndTime, task.Cron, task.State, task.Rating, task.ReportID, task.TemplateID, task.NotifyID, task.TaskID, task.Mode, task.ErrMessage, task.ID)
+	_, err := DB.Exec("UPDATE task SET name = ?, start_time = ?, end_time = ?, cron = ?, state = ?, rating = ?, report_id = ?, template_id = ?, notify_id = ?, task_id = ?, mode = ?, err_message = ? WHERE id = ?", task.Name, task.StartTime, task.EndTime, task.Cron, task.State, task.Rating, task.ReportID, task.TemplateID, task.NotifyID, task.TaskID, task.Mode, task.ErrMessage, task.ID)
 	if err != nil {
 		log.Printf("Error updating task: %v", err)
 		return err
@@ -140,17 +96,6 @@ func UpdateTask(task *apis.Task) error {
 
 // DeleteTask removes a task from the database by ID.
 func DeleteTask(ID string) error {
-	DB, err := GetDB()
-	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return err
-	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
 	result, err := DB.Exec("DELETE FROM task WHERE id = ?", ID)
 	if err != nil {
 		log.Printf("Error executing delete statement: %v", err)

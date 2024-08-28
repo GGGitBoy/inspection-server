@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 	"inspection-server/pkg/common"
 	"inspection-server/pkg/db"
+	pdfPrint "inspection-server/pkg/print"
 	"io"
 	"net/http"
 	"os"
@@ -53,6 +54,19 @@ func PrintReport() http.Handler {
 		}
 
 		filePath := filepath.Join(common.PrintPDFPath, common.GetReportFileName(report.Global.ReportTime))
+		if !common.FileExists(filePath) {
+			logrus.Infof("Report file no exists at path: %s", filePath)
+			p := pdfPrint.NewPrint()
+			p.URL = "http://127.0.0.1/#/inspection/result-pdf-view/" + report.ID
+			p.ReportTime = report.Global.ReportTime
+			err = pdfPrint.FullScreenshot(p)
+			if err != nil {
+				logrus.Errorf("Failed to print pdf for report with ID %s: %v", reportID, err)
+				common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("Failed to print pdf for report with ID %s: %v\n", reportID, err))
+				return
+			}
+		}
+
 		file, err := os.Open(filePath)
 		if err != nil {
 			logrus.Errorf("Failed to open file %s: %v", filePath, err)

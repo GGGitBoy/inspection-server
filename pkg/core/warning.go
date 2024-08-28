@@ -124,6 +124,11 @@ func GetAllGrafanaInspections() (map[string]*GrafanaInspection, error) {
 		return nil, err
 	}
 
+	if alerting == nil || alerting.Data == nil || len(alerting.Data.RuleGroups) == 0 {
+		log.Printf("alerting rule is empty: %v", err)
+		return nil, fmt.Errorf("alerting rule is empty: %v", err)
+	}
+
 	for _, group := range alerting.Data.RuleGroups {
 		for _, rule := range group.Rules {
 			if rule.State == "firing" || rule.State == "pending" {

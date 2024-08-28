@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/common"
@@ -105,7 +106,7 @@ func GetResource() http.Handler {
 		kubernetesClient, err := common.GetKubernetesClient(clusterID)
 		if err != nil {
 			logrus.Errorf("Failed to get Kubernetes client for cluster %s: %v", clusterID, err)
-			common.HandleError(rw, http.StatusInternalServerError, err)
+			common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("Failed to get Kubernetes client for cluster %s: %v\n", clusterID, err))
 			return
 		}
 

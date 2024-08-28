@@ -8,17 +8,6 @@ import (
 
 // CreateReport inserts a new report into the database.
 func CreateReport(report *apis.Report) error {
-	DB, err := GetDB()
-	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return err
-	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
 	data, err := json.Marshal(report.Kubernetes)
 	if err != nil {
 		log.Printf("Error marshaling Kubernetes data: %v", err)
@@ -57,22 +46,11 @@ func CreateReport(report *apis.Report) error {
 
 // GetReport retrieves a report from the database by ID.
 func GetReport(reportID string) (*apis.Report, error) {
-	DB, err := GetDB()
-	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return nil, err
-	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
 	row := DB.QueryRow("SELECT id, name, rating, report_time, data FROM report WHERE id = ? LIMIT 1", reportID)
 
 	var id, name, rating, reportTime, data string
 	report := apis.NewReport()
-	err = row.Scan(&id, &name, &rating, &reportTime, &data)
+	err := row.Scan(&id, &name, &rating, &reportTime, &data)
 	if err != nil {
 		log.Printf("Error scanning row: %v", err)
 		return nil, err
@@ -101,17 +79,6 @@ func GetReport(reportID string) (*apis.Report, error) {
 
 // DeleteReport removes a report from the database by ID.
 func DeleteReport(reportID string) error {
-	DB, err := GetDB()
-	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return err
-	}
-	defer func() {
-		if err := DB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
 	result, err := DB.Exec("DELETE FROM report WHERE id = ?", reportID)
 	if err != nil {
 		log.Printf("Error executing delete statement: %v", err)
