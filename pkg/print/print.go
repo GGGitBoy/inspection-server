@@ -45,13 +45,17 @@ func FullScreenshot(print *Print) error {
 
 	log.Println("Starting page load")
 	page := browser.MustPage(print.URL)
-	page.Timeout(15 * time.Minute).MustWaitLoad()
+	err := page.Timeout(15 * time.Minute).WaitLoad()
+	if err != nil {
+		log.Fatalf("Failed to wait load: %v", err)
+		return fmt.Errorf("Failed to wait load: %v\n", err)
+	}
 
 	time.Sleep(time.Duration(waitSecond) * time.Second)
 
-	log.Println("Starting page must eval")
+	log.Println("Starting page scroll")
 
-	page.MustEval(`() => {
+	_, err = page.Timeout(15 * time.Minute).Eval(`() => {
 		var totalHeight = 0;
 		var distance = 100;
 		var timer = setInterval(() => {
@@ -63,21 +67,34 @@ func FullScreenshot(print *Print) error {
 			}
 		}, 1000);
 	}`)
-
-	err := page.Wait(rod.Eval(`() => document.body.scrollHeight <= (window.scrollY + window.innerHeight)`))
 	if err != nil {
-		log.Printf("Error while waiting for page scroll completion: %v", err)
-		return fmt.Errorf("Error while waiting for page scroll completion: %v\n", err)
+		log.Fatalf("Failed page scroll: %v", err)
+		return fmt.Errorf("Failed page scroll: %v\n", err)
 	}
 
-	metrics := page.MustEval(`() => ({
+	time.Sleep(time.Duration(waitSecond) * time.Second)
+
+	//log.Println("Starting page wait eval")
+	//err := page.Wait(rod.Eval(`() => document.body.scrollHeight <= (window.scrollY + window.innerHeight)`))
+	//if err != nil {
+	//	log.Printf("Error while waiting for page scroll completion: %v", err)
+	//	return fmt.Errorf("Error while waiting for page scroll completion: %v\n", err)
+	//}
+
+	log.Println("Starting get page width, height")
+
+	metrics, err := page.Timeout(15 * time.Minute).Eval(`() => ({
 		width: document.body.scrollWidth,
 		height: document.body.scrollHeight,
 	})`)
+	if err != nil {
+		log.Fatalf("Failed get page width, height: %v", err)
+		return fmt.Errorf("Failed get page width, height: %v\n", err)
+	}
 
-	log.Printf("Page dimensions: width=%d, height=%d", metrics.Get("width").Int(), metrics.Get("height").Int())
+	log.Printf("Page dimensions: width=%d, height=%d", metrics.Value.Get("width").Int(), metrics.Value.Get("height").Int())
 
-	page.MustSetViewport(metrics.Get("width").Int(), metrics.Get("height").Int(), 1, false)
+	page.MustSetViewport(metrics.Value.Get("width").Int(), metrics.Value.Get("height").Int(), 1, false)
 
 	screenshot, err := page.Screenshot(false, nil)
 	if err != nil {
