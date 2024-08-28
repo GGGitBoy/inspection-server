@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
 	"io"
@@ -537,7 +538,7 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 				Log:  str,
 			})
 			mu.Unlock()
-			log.Printf("Processed pod: %s", pod.Name)
+			logrus.Debugf("Processed pod: %s", pod.Name)
 		}(pod)
 	}
 	wg.Wait()
@@ -559,7 +560,7 @@ func GetNamespaces(client *apis.Client) ([]*apis.Namespace, []*apis.Inspection, 
 	}
 
 	for _, n := range namespaceList.Items {
-		log.Printf("Processing namespace: %s", n.Name)
+		logrus.Debugf("Processing namespace: %s", n.Name)
 
 		var emptyResourceQuota, emptyResource bool
 
@@ -660,7 +661,7 @@ func GetNamespaces(client *apis.Client) ([]*apis.Namespace, []*apis.Inspection, 
 			ConfigMapCount:     len(configMapList.Items) - 1,
 		})
 
-		log.Printf("Processed namespace: %s", n.Name)
+		logrus.Debugf("Processed namespace: %s", n.Name)
 	}
 
 	log.Println("Completed namespace retrieval")
@@ -680,8 +681,7 @@ func GetServices(client *apis.Client) ([]*apis.Service, []*apis.Inspection, erro
 	}
 
 	for _, s := range serviceList.Items {
-		log.Printf("Processing service: %s/%s", s.Namespace, s.Name)
-
+		logrus.Debugf("Processing service: %s/%s", s.Namespace, s.Name)
 		endpoints, err := client.Clientset.CoreV1().Endpoints(s.Namespace).Get(context.TODO(), s.Name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {

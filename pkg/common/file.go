@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
 	"log"
 	"os"
@@ -78,11 +79,11 @@ func DeleteFile(path string) error {
 func FileExists(filename string) bool {
 	_, err := os.Stat(filename)
 	if err == nil {
-		log.Printf("File exists at path: %s", filename)
+		logrus.Debugf("File exists at path: %s", filename)
 		return true
 	}
 	if os.IsNotExist(err) {
-		log.Printf("File does not exist at path: %s", filename)
+		logrus.Debugf("File does not exist at path: %s", filename)
 		return false
 	}
 

@@ -72,7 +72,9 @@ func RemoveSchedule(task *apis.Task) error {
 	var err error
 	if task.Mode == "计划任务" {
 		err = RemoveTimetask(task.ID)
-	} else if task.Mode == "周期任务" && task.Cron != "" {
+	} else if task.Mode == "周期任务" && task.TaskID != "" {
+		err = RemoveTimetask(task.ID)
+	} else if task.Mode == "周期任务" && task.Cron != "" && task.TaskID == "" {
 		err = RemoveCorntask(task.ID)
 	}
 
@@ -114,10 +116,10 @@ func ExecuteTask(task *apis.Task) {
 		if updateErr != nil {
 			logrus.Errorf("Failed to update task %s with error message: %v", task.ID, updateErr)
 		}
-	} else {
-		removeErr := RemoveSchedule(task)
-		if removeErr != nil {
-			logrus.Errorf("Failed to remove schedule for task %s: %v", task.ID, removeErr)
-		}
+	}
+
+	removeErr := RemoveSchedule(task)
+	if removeErr != nil {
+		logrus.Errorf("Failed to remove schedule for task %s: %v", task.ID, removeErr)
 	}
 }

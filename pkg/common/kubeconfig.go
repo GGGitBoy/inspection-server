@@ -103,7 +103,7 @@ func GetKubernetesClient(name string) (*apis.Client, error) {
 func WriteKubeconfig(clusterID string) error {
 	kubeconfigPath := WriteKubeconfigPath + clusterID
 	if FileExists(kubeconfigPath) {
-		logrus.Infof("Cluster %s kubeconfig already exists at path: %s", clusterID, kubeconfigPath)
+		logrus.Debugf("Cluster %s kubeconfig already exists at path: %s", clusterID, kubeconfigPath)
 		return nil
 	}
 

@@ -27,16 +27,11 @@ var (
 
 	LocalCluster = "local"
 
-	// WorkDir should be retrieved from an environment variable or configuration file
 	WorkDir = "/opt/"
 
-	ConfigFilePath = WorkDir + "config/config.yml"
-
-	PrintShotPath = WorkDir + "print/screenshot.png"
-	PrintPDFPath  = WorkDir + "print/"
-	// PrintPDFName  = "report.pdf"
-
-	WriteKubeconfigPath = WorkDir + "kubeconfig/"
+	PrintShotPath       = WorkDir + "db/print/screenshot.png"
+	PrintPDFPath        = WorkDir + "db/print/"
+	WriteKubeconfigPath = WorkDir + "db/kubeconfig/"
 
 	SendTestPDFPath = WorkDir + SendTestPDFName
 	SendTestPDFName = "test.pdf"

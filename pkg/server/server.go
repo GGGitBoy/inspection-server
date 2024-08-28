@@ -67,8 +67,8 @@ func debugHandle(router *mux.Router) {
 // logMiddleware is a middleware function that logs each incoming HTTP request
 func logMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logrus.Infof("Incoming request: Method=%s, URL=%s, RemoteAddr=%s", r.Method, r.URL, r.RemoteAddr)
+		logrus.Debugf("Incoming request: Method=%s, URL=%s, RemoteAddr=%s", r.Method, r.URL, r.RemoteAddr)
 		next.ServeHTTP(w, r)
-		logrus.Infof("Completed handling request: Method=%s, URL=%s, RemoteAddr=%s", r.Method, r.URL, r.RemoteAddr)
+		logrus.Debugf("Completed handling request: Method=%s, URL=%s, RemoteAddr=%s", r.Method, r.URL, r.RemoteAddr)
 	})
 }
