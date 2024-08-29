@@ -10,7 +10,7 @@ RUN apt-get update \
 # 安装 Chromium 作为 deb 包而不是 Snap 包
 RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
     && apt-get install -y ./google-chrome-stable_current_amd64.deb \
-    && rm google-chrome-stable_current_amd64.deb \
+    && rm google-chrome-stable_current_amd64.deb
 
 # 创建 chromium 命令的符号链接指向 google-chrome
 RUN ln -s /usr/bin/google-chrome /usr/bin/chromium
