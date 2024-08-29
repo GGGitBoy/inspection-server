@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
+	"github.com/go-rod/rod/lib/proto"
 	"github.com/signintech/gopdf"
 	"image"
 	"inspection-server/pkg/common"
@@ -44,8 +45,14 @@ func FullScreenshot(print *Print) error {
 	defer browser.MustClose()
 
 	log.Println("Starting page load")
-	page := browser.MustPage(print.URL)
-	err := page.Timeout(15 * time.Minute).WaitLoad()
+	page, err := browser.Page(proto.TargetCreateTarget{URL: print.URL})
+	if err != nil {
+		log.Fatalf("Failed to get page: %v", err)
+		return fmt.Errorf("Failed to get page: %v\n", err)
+	}
+
+	log.Println("Starting wait load")
+	err = page.Timeout(15 * time.Minute).WaitLoad()
 	if err != nil {
 		log.Fatalf("Failed to wait load: %v", err)
 		return fmt.Errorf("Failed to wait load: %v\n", err)
