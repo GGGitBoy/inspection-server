@@ -40,9 +40,19 @@ func FullScreenshot(print *Print) error {
 	if !ok {
 		return fmt.Errorf("Failed to find browser path\n")
 	}
-	u := launcher.New().Bin(path).MustLaunch()
-	browser := rod.New().ControlURL(u).MustConnect().MustIgnoreCertErrors(true)
-	defer browser.MustClose()
+	u, err := launcher.New().Bin(path).Launch()
+	if err != nil {
+		log.Fatalf("Failed to get launch: %v", err)
+		return fmt.Errorf("Failed to get launch: %v\n", err)
+	}
+
+	browser := rod.New().ControlURL(u)
+	browser.Connect()
+	if err != nil {
+		log.Fatalf("Failed to connect: %v", err)
+		return fmt.Errorf("Failed to connect: %v\n", err)
+	}
+	defer browser.Close()
 
 	log.Println("Starting page load")
 	page, err := browser.Page(proto.TargetCreateTarget{URL: print.URL})
@@ -59,7 +69,6 @@ func FullScreenshot(print *Print) error {
 	}
 
 	time.Sleep(time.Duration(waitSecond) * time.Second)
-
 	log.Println("Starting page scroll")
 
 	_, err = page.Timeout(15 * time.Minute).Eval(`() => {
