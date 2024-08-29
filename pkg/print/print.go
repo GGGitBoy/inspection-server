@@ -40,7 +40,7 @@ func FullScreenshot(print *Print) error {
 	if !ok {
 		return fmt.Errorf("Failed to find browser path\n")
 	}
-	u, err := launcher.New().Bin(path).Launch()
+	u, err := launcher.New().Bin(path).NoSandbox(true).Launch()
 	if err != nil {
 		log.Fatalf("Failed to get launch: %v", err)
 		return fmt.Errorf("Failed to get launch: %v\n", err)
