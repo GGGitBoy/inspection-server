@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-var waitSecond = 10
+var waitSecond = 30
 
 type Print struct {
 	URL        string `json:"url"`
