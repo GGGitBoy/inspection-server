@@ -1,4 +1,4 @@
-FROM alpine:latest
+FROM alpine:3.20.2
 
 # 设置时区并安装必要的软件包
 RUN apk update \

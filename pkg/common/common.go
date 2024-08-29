@@ -28,6 +28,7 @@ var (
 	LocalCluster = "local"
 
 	WorkDir = "/opt/"
+	//WorkDir = "/Users/chenjiandao/jiandao/inspection-server/opt/"
 
 	PrintShotPath       = WorkDir + "db/print/screenshot.png"
 	PrintPDFPath        = WorkDir + "db/print/"
