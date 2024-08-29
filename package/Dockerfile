@@ -4,11 +4,16 @@ FROM ubuntu:20.04
 RUN apt-get update \
     && apt-get install -y \
         tzdata \
-        chromium-browser \
         fonts-noto-cjk \
-    && ln -sf /usr/share/zoneinfo/$TZ /etc/localtime \
-    && echo $TZ > /etc/timezone \
-    && apt-get clean
+        wget
+
+# 安装 Chromium 作为 deb 包而不是 Snap 包
+RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && apt-get install -y ./google-chrome-stable_current_amd64.deb \
+    && rm google-chrome-stable_current_amd64.deb \
+
+# 创建 chromium 命令的符号链接指向 google-chrome
+RUN ln -s /usr/bin/google-chrome /usr/bin/chromium
 
 # 设置时区和环境变量
 ENV TZ=Asia/Shanghai

@@ -49,7 +49,7 @@ func Webhook(webhookURL, secret, text string) error {
 		Content: Content{
 			Text: text,
 		},
-		Timestamp: int64(timestamp),
+		Timestamp: timestamp,
 		Sign:      sign,
 	}
 
@@ -204,6 +204,14 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 	logrus.Debugf("Chats listed successfully: %s", larkcore.Prettify(listChatResp))
 
 	// 循环发送消息到每个聊天
+	var content Content
+	content.Text = message
+	data, err := json.Marshal(content)
+	if err != nil {
+		fmt.Printf("Error marshaling Content data: %v", err)
+		return err
+	}
+
 	for _, i := range listChatResp.Data.Items {
 		// 发送文本消息
 		createMessageReq := larkim.NewCreateMessageReqBuilder().
@@ -211,7 +219,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 			Body(larkim.NewCreateMessageReqBodyBuilder().
 				ReceiveId(*i.ChatId).
 				MsgType(`text`).
-				Content(fmt.Sprintf("{\"text\":\"%s\"}", message)).
+				Content(string(data)).
 				Build()).
 			Build()
 

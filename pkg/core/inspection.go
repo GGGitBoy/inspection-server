@@ -191,10 +191,10 @@ func Inspection(task *apis.Task) error {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(`该巡检报告的健康等级为: %s\n`, report.Global.Rating))
+	sb.WriteString(fmt.Sprintf("该巡检报告的健康等级为: %s\n", report.Global.Rating))
 
 	for _, s := range sendMessageDetail {
-		sb.WriteString(fmt.Sprintf(`%s\n`, s))
+		sb.WriteString(fmt.Sprintf("%s\n", s))
 	}
 
 	p := pdfPrint.NewPrint()
@@ -212,7 +212,7 @@ func Inspection(task *apis.Task) error {
 		}
 
 		if notify.WebhookURL != "" && notify.Secret != "" {
-			sb.WriteString(fmt.Sprintf(`该巡检报告的访问地址为: %s/api/v1/namespaces/cattle-inspection-system/services/http:access-inspection:80/proxy/#/inspection/result/%s\n`, common.ServerURL, report.ID))
+			sb.WriteString(fmt.Sprintf("该巡检报告的访问地址为: %s/api/v1/namespaces/cattle-inspection-system/services/http:access-inspection:80/proxy/#/inspection/result/%s\n", common.ServerURL, report.ID))
 			err = send.Webhook(notify.WebhookURL, notify.Secret, sb.String())
 			if err != nil {
 				return fmt.Errorf("Failed to send notification: %v\n", err)

@@ -81,7 +81,7 @@ func FullScreenshot(print *Print) error {
 			if(totalHeight >= scrollHeight){
 				clearInterval(timer);
 			}
-		}, 1000);
+		}, 2000);
 	}`)
 	if err != nil {
 		log.Fatalf("Failed page scroll: %v", err)
