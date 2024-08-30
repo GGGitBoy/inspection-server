@@ -183,6 +183,7 @@ func Register() error {
 		workloadConfig := apis.NewWorkloadConfig()
 		workloadConfig = getWorkloadConfigByProvider(provider)
 		if c.GetName() == common.LocalCluster {
+			log.Printf("%s cluster add rancher check\n", c.GetName())
 			workloadConfig.Deployment = append(workloadConfig.Deployment, &apis.WorkloadDetailConfig{
 				Name:      "rancher",
 				Namespace: "cattle-system",
@@ -232,21 +233,22 @@ func Register() error {
 		})
 	}
 
-	template = &apis.Template{
-		ID:               "Default",
-		Name:             "Default",
-		KubernetesConfig: kubernetesConfig,
-	}
-
-	_, err = db.GetTemplate("Default")
+	template, err = db.GetTemplate("Default")
 	if err != nil {
 		log.Println("Creating template in the database...")
-		if err := db.CreateTemplate(template); err != nil {
+		t := &apis.Template{
+			ID:               "Default",
+			Name:             "Default",
+			KubernetesConfig: kubernetesConfig,
+		}
+
+		if err := db.CreateTemplate(t); err != nil {
 			log.Printf("Failed to create template: %v\n", err)
 			return fmt.Errorf("failed to create template: %w", err)
 		}
 	} else {
 		log.Println("Updating template in the database...")
+		template.KubernetesConfig = kubernetesConfig
 		if err := db.UpdateTemplate(template); err != nil {
 			log.Printf("Failed to update template: %v\n", err)
 			return fmt.Errorf("failed to update template: %w", err)
