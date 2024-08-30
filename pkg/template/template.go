@@ -14,119 +14,6 @@ import (
 	"log"
 )
 
-var (
-	RKE1WorkloadConfig = &apis.WorkloadConfig{
-		Deployment: []*apis.WorkloadDetailConfig{
-			{
-				Name:      "cattle-cluster-agent",
-				Namespace: "cattle-system",
-			},
-			{
-				Name:      "rancher-webhook",
-				Namespace: "cattle-system",
-			},
-			{
-				Name:      "calico-kube-controllers",
-				Namespace: "kube-system",
-			},
-			{
-				Name:      "coredns",
-				Namespace: "kube-system",
-				Regexp:    "",
-			},
-			{
-				Name:      "coredns-autoscaler",
-				Namespace: "kube-system",
-			},
-			{
-				Name:      "metrics-server",
-				Namespace: "kube-system",
-			},
-		},
-		Daemonset: []*apis.WorkloadDetailConfig{
-			{
-				Name:      "inspection-agent",
-				Namespace: "cattle-system",
-			},
-			{
-				Name:      "kube-api-auth",
-				Namespace: "cattle-system",
-			},
-			{
-				Name:      "cattle-node-agent",
-				Namespace: "cattle-system",
-			},
-			{
-				Name:      "nginx-ingress-controller",
-				Namespace: "ingress-nginx",
-			},
-			{
-				Name:      "canal",
-				Namespace: "kube-system",
-			},
-		},
-	}
-
-	RKE2WorkloadConfig = &apis.WorkloadConfig{
-		Deployment: []*apis.WorkloadDetailConfig{
-			{
-				Name:      "cattle-cluster-agent",
-				Namespace: "cattle-system",
-			},
-			{
-				Name:      "rancher-webhook",
-				Namespace: "cattle-system",
-			},
-			{
-				Name:      "system-upgrade-controller",
-				Namespace: "cattle-system",
-			},
-			{
-				Name:      "rke2-coredns-rke2-coredns",
-				Namespace: "kube-system",
-			},
-			{
-				Name:      "rke2-coredns-rke2-coredns-autoscaler",
-				Namespace: "kube-system",
-			},
-			{
-				Name:      "rke2-metrics-server",
-				Namespace: "kube-system",
-			},
-			{
-				Name:      "rke2-snapshot-controller",
-				Namespace: "kube-system",
-			},
-			{
-				Name:      "rke2-snapshot-validation-webhook",
-				Namespace: "kube-system",
-			},
-			{
-				Name:      "calico-kube-controllers",
-				Namespace: "calico-system",
-			},
-			{
-				Name:      "calico-typha",
-				Namespace: "calico-system",
-			},
-		},
-		Daemonset: []*apis.WorkloadDetailConfig{
-			{
-				Name:      "inspection-agent",
-				Namespace: "cattle-system",
-			},
-			{
-				Name:      "rke2-ingress-nginx-controller",
-				Namespace: "kube-system",
-			},
-			{
-				Name:      "calico-node",
-				Namespace: "calico-system",
-			},
-		},
-	}
-)
-
 func Register() error {
 	log.Println("Starting template registration process...")
 
@@ -181,8 +68,7 @@ func Register() error {
 		}
 
 		workloadConfig := apis.NewWorkloadConfig()
-		WorkloadConfigByProvider := getWorkloadConfigByProvider(provider)
-		workloadConfig = WorkloadConfigByProvider
+		workloadConfig = getWorkloadConfigByProvider(provider)
 		if c.GetName() == common.LocalCluster {
 			log.Printf("%s cluster add rancher check\n", c.GetName())
 			workloadConfig.Deployment = append(workloadConfig.Deployment, &apis.WorkloadDetailConfig{
@@ -263,10 +149,12 @@ func Register() error {
 // 获取工作负载配置
 func getWorkloadConfigByProvider(provider string) *apis.WorkloadConfig {
 	switch provider {
-	case detectorProviders.RKE, detectorProviders.K3s:
-		return RKE1WorkloadConfig
+	case detectorProviders.RKE:
+		return NewRKE1WorkloadConfig()
 	case detectorProviders.RKE2:
-		return RKE2WorkloadConfig
+		return NewRKE2WorkloadConfig()
+	case detectorProviders.K3s:
+		return NewK3SWorkloadConfig()
 	default:
 		return &apis.WorkloadConfig{}
 	}
@@ -363,4 +251,144 @@ func isWorkerNode(node v1.Node) bool {
 func isMasterNode(node v1.Node) bool {
 	isMaster, ok := node.Labels["node-role.kubernetes.io/master"]
 	return ok && isMaster == "true"
+}
+
+func NewRKE1WorkloadConfig() *apis.WorkloadConfig {
+	return &apis.WorkloadConfig{
+		Deployment: []*apis.WorkloadDetailConfig{
+			{
+				Name:      "cattle-cluster-agent",
+				Namespace: "cattle-system",
+			},
+			{
+				Name:      "rancher-webhook",
+				Namespace: "cattle-system",
+			},
+			{
+				Name:      "calico-kube-controllers",
+				Namespace: "kube-system",
+			},
+			{
+				Name:      "coredns",
+				Namespace: "kube-system",
+				Regexp:    "",
+			},
+			{
+				Name:      "coredns-autoscaler",
+				Namespace: "kube-system",
+			},
+			{
+				Name:      "metrics-server",
+				Namespace: "kube-system",
+			},
+		},
+		Daemonset: []*apis.WorkloadDetailConfig{
+			{
+				Name:      "inspection-agent",
+				Namespace: "cattle-system",
+			},
+			{
+				Name:      "kube-api-auth",
+				Namespace: "cattle-system",
+			},
+			{
+				Name:      "cattle-node-agent",
+				Namespace: "cattle-system",
+			},
+			{
+				Name:      "nginx-ingress-controller",
+				Namespace: "ingress-nginx",
+			},
+			{
+				Name:      "canal",
+				Namespace: "kube-system",
+			},
+		},
+	}
+}
+
+func NewRKE2WorkloadConfig() *apis.WorkloadConfig {
+	return &apis.WorkloadConfig{
+		Deployment: []*apis.WorkloadDetailConfig{
+			{
+				Name:      "cattle-cluster-agent",
+				Namespace: "cattle-system",
+			},
+			{
+				Name:      "rancher-webhook",
+				Namespace: "cattle-system",
+			},
+			{
+				Name:      "system-upgrade-controller",
+				Namespace: "cattle-system",
+			},
+			{
+				Name:      "rke2-coredns-rke2-coredns",
+				Namespace: "kube-system",
+			},
+			{
+				Name:      "rke2-coredns-rke2-coredns-autoscaler",
+				Namespace: "kube-system",
+			},
+			{
+				Name:      "rke2-metrics-server",
+				Namespace: "kube-system",
+			},
+			{
+				Name:      "rke2-snapshot-controller",
+				Namespace: "kube-system",
+			},
+			{
+				Name:      "rke2-snapshot-validation-webhook",
+				Namespace: "kube-system",
+			},
+			{
+				Name:      "calico-kube-controllers",
+				Namespace: "calico-system",
+			},
+			{
+				Name:      "calico-typha",
+				Namespace: "calico-system",
+			},
+		},
+		Daemonset: []*apis.WorkloadDetailConfig{
+			{
+				Name:      "inspection-agent",
+				Namespace: "cattle-system",
+			},
+			{
+				Name:      "rke2-ingress-nginx-controller",
+				Namespace: "kube-system",
+			},
+			{
+				Name:      "calico-node",
+				Namespace: "calico-system",
+			},
+		},
+	}
+}
+
+func NewK3SWorkloadConfig() *apis.WorkloadConfig {
+	return &apis.WorkloadConfig{
+		Deployment: []*apis.WorkloadDetailConfig{
+			{
+				Name:      "cattle-cluster-agent",
+				Namespace: "cattle-system",
+			},
+			{
+				Name:      "rancher-webhook",
+				Namespace: "cattle-system",
+			},
+			{
+				Name:      "coredns",
+				Namespace: "kube-system",
+			},
+		},
+		Daemonset: []*apis.WorkloadDetailConfig{
+			{
+				Name:      "inspection-agent",
+				Namespace: "cattle-system",
+			},
+		},
+	}
 }
