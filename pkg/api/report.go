@@ -96,9 +96,5 @@ func PrintReport() http.Handler {
 			return
 		}
 
-		if _, err := rw.Write([]byte("打印成功")); err != nil {
-			logrus.Errorf("Failed to write success message for report %s: %v", reportID, err)
-			common.HandleError(rw, http.StatusInternalServerError, err)
-		}
 	})
 }

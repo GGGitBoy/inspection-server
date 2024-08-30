@@ -93,6 +93,20 @@ func NewClusterNodeConfig() *ClusterNodeConfig {
 	}
 }
 
+func NewNodeConfigs() []*NodeConfig {
+	return []*NodeConfig{}
+}
+
+func NewWorkloadConfig() *WorkloadConfig {
+	return &WorkloadConfig{
+		Deployment:  []*WorkloadDetailConfig{},
+		Statefulset: []*WorkloadDetailConfig{},
+		Daemonset:   []*WorkloadDetailConfig{},
+		Job:         []*WorkloadDetailConfig{},
+		Cronjob:     []*WorkloadDetailConfig{},
+	}
+}
+
 func NewClusterResourceConfig() *ClusterResourceConfig {
 	return &ClusterResourceConfig{
 		WorkloadConfig:  &WorkloadConfig{},

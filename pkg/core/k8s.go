@@ -502,7 +502,12 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 			defer wg.Done()
 			log.Printf("Processing pod: %s", pod.Name)
 
-			getLog := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{TailLines: &line})
+			if len(pod.Spec.Containers) == 0 {
+				log.Printf("Error getting logs for pod %s: container is zero", pod.Name)
+				return
+			}
+
+			getLog := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{Container: pod.Spec.Containers[0].Name, TailLines: &line})
 			podLogs, err := getLog.Stream(context.TODO())
 			if err != nil {
 				log.Printf("Error getting logs for pod %s: %v", pod.Name, err)

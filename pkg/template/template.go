@@ -39,8 +39,8 @@ var (
 				Namespace: "kube-system",
 			},
 			{
-				Name:      "calico-kube-controllers",
-				Namespace: "metrics-server",
+				Name:      "metrics-server",
+				Namespace: "kube-system",
 			},
 		},
 		Daemonset: []*apis.WorkloadDetailConfig{
@@ -144,6 +144,7 @@ func Register() error {
 	kubernetesConfig := apis.NewKubernetesConfig()
 
 	for _, c := range clusters.Items {
+
 		clusterName := c.GetName()
 		log.Printf("Processing cluster: %s\n", clusterName)
 
@@ -159,8 +160,8 @@ func Register() error {
 			return err
 		}
 
-		workloadConfig := getWorkloadConfigByProvider(provider)
-
+		workloadConfig := apis.NewWorkloadConfig()
+		workloadConfig = getWorkloadConfigByProvider(provider)
 		if c.GetName() == common.LocalCluster {
 			workloadConfig.Deployment = append(workloadConfig.Deployment, &apis.WorkloadDetailConfig{
 				Name:      "rancher",
@@ -176,7 +177,8 @@ func Register() error {
 			return err
 		}
 
-		nodeConfigs, err := generateNodeConfigs(nodeList, provider)
+		nodeConfigs := apis.NewNodeConfigs()
+		nodeConfigs, err = generateNodeConfigs(nodeList, provider)
 		if err != nil {
 			log.Printf("Failed to generate node configs for cluster %s: %v\n", clusterName, err)
 			return err
@@ -184,7 +186,10 @@ func Register() error {
 
 		clusterCoreConfig := apis.NewClusterCoreConfig()
 		clusterNodeConfig := apis.NewClusterNodeConfig()
-		clusterResourceConfig := &apis.ClusterResourceConfig{
+		clusterResourceConfig := apis.NewClusterResourceConfig()
+
+		clusterNodeConfig.NodeConfig = nodeConfigs
+		clusterResourceConfig = &apis.ClusterResourceConfig{
 			WorkloadConfig: workloadConfig,
 			NamespaceConfig: &apis.NamespaceConfig{
 				Enable: true,
@@ -196,8 +201,6 @@ func Register() error {
 				Enable: true,
 			},
 		}
-
-		clusterNodeConfig.NodeConfig = nodeConfigs
 
 		spec, _, err := unstructured.NestedMap(c.UnstructuredContent(), "spec")
 		if err != nil {
