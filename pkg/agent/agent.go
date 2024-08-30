@@ -38,6 +38,11 @@ func Register() error {
 	for _, c := range clusters.Items {
 		logrus.Infof("Processing cluster: %s", c.GetName())
 
+		if !common.IsClusterReady(c) {
+			logrus.Errorf("cluster %s is not ready", c.GetName())
+			continue
+		}
+
 		kubernetesClient, err := common.GetKubernetesClient(c.GetName())
 		if err != nil {
 			logrus.Errorf("Failed to get Kubernetes client for cluster %s: %v", c.GetName(), err)

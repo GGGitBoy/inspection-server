@@ -144,9 +144,29 @@ func Register() error {
 	kubernetesConfig := apis.NewKubernetesConfig()
 
 	for _, c := range clusters.Items {
-
 		clusterName := c.GetName()
 		log.Printf("Processing cluster: %s\n", clusterName)
+
+		spec, _, err := unstructured.NestedMap(c.UnstructuredContent(), "spec")
+		if err != nil {
+			log.Printf("Error getting spec for cluster %s: %v\n", clusterName, err)
+			return fmt.Errorf("error getting spec for cluster %s: %w", clusterName, err)
+		}
+
+		clusterDisplayName, ok := spec["displayName"].(string)
+		if !ok {
+			log.Printf("Invalid displayName format for cluster %s\n", clusterName)
+			return fmt.Errorf("invalid displayName format for cluster %s", clusterName)
+		}
+
+		if !common.IsClusterReady(c) {
+			kubernetesConfig = append(kubernetesConfig, &apis.KubernetesConfig{
+				Enable:      false,
+				ClusterID:   clusterName,
+				ClusterName: clusterDisplayName,
+			})
+			continue
+		}
 
 		kubernetesClient, err := common.GetKubernetesClient(clusterName)
 		if err != nil {
@@ -200,18 +220,6 @@ func Register() error {
 			IngressConfig: &apis.IngressConfig{
 				Enable: true,
 			},
-		}
-
-		spec, _, err := unstructured.NestedMap(c.UnstructuredContent(), "spec")
-		if err != nil {
-			log.Printf("Error getting spec for cluster %s: %v\n", clusterName, err)
-			return fmt.Errorf("error getting spec for cluster %s: %w", clusterName, err)
-		}
-
-		clusterDisplayName, ok := spec["displayName"].(string)
-		if !ok {
-			log.Printf("Invalid displayName format for cluster %s\n", clusterName)
-			return fmt.Errorf("invalid displayName format for cluster %s", clusterName)
 		}
 
 		kubernetesConfig = append(kubernetesConfig, &apis.KubernetesConfig{

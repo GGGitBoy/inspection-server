@@ -33,6 +33,11 @@ func ListAgent() http.Handler {
 		for _, c := range clusterList.Items {
 			logrus.Infof("Checking agent for cluster: %s", c.GetName())
 
+			if !common.IsClusterReady(c) {
+				logrus.Errorf("cluster %s is not ready", c.GetName())
+				continue
+			}
+
 			kubernetesClient, err := common.GetKubernetesClient(c.GetName())
 			if err != nil {
 				logrus.Errorf("Failed to get Kubernetes client for cluster %s: %v", c.GetName(), err)

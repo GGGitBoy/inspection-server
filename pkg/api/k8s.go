@@ -30,6 +30,7 @@ type Data struct {
 type Cluster struct {
 	ClusterID   string `json:"cluster_id"`
 	ClusterName string `json:"cluster_name"`
+	Ready       bool   `json:"ready"`
 }
 
 func NewResource() *Resource {
@@ -80,6 +81,7 @@ func GetClusters() http.Handler {
 			clusters = append(clusters, &Cluster{
 				ClusterID:   c.GetName(),
 				ClusterName: displayName,
+				Ready:       common.IsClusterReady(c),
 			})
 		}
 

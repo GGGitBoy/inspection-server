@@ -9,6 +9,7 @@ import (
 	"inspection-server/pkg/apis"
 	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -65,6 +66,11 @@ func GenerateKubeconfig(clients map[string]*apis.Client) error {
 	for _, c := range clusters.Items {
 		clusterName := c.GetName()
 		logrus.Infof("Processing cluster: %s", clusterName)
+
+		if !IsClusterReady(c) {
+			logrus.Errorf("cluster %s is not ready", c.GetName())
+			continue
+		}
 
 		kubernetesClient, err := GetKubernetesClient(clusterName)
 		if err != nil {
@@ -182,4 +188,27 @@ func GetClient(kubeconfigPath string) (*apis.Client, error) {
 		Clientset:     clientset,
 		Config:        config,
 	}, nil
+}
+
+func IsClusterReady(cluster unstructured.Unstructured) bool {
+	conditions, found, err := unstructured.NestedSlice(cluster.Object, "status", "conditions")
+	if err != nil {
+		fmt.Printf("Error getting conditions: %v\n", err)
+		return false
+	}
+
+	if !found {
+		fmt.Println("No conditions found in the object.")
+		return false
+	}
+
+	for _, condition := range conditions {
+		if condMap, ok := condition.(map[string]interface{}); ok {
+			if condMap["type"].(string) == "Ready" && condMap["status"].(string) == "True" {
+				return true
+			}
+		}
+	}
+
+	return false
 }
