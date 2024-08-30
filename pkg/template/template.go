@@ -181,9 +181,8 @@ func Register() error {
 		}
 
 		workloadConfig := apis.NewWorkloadConfig()
-		fmt.Println(len(workloadConfig.Deployment))
-		workloadConfig = getWorkloadConfigByProvider(provider)
-		fmt.Println(len(workloadConfig.Deployment))
+		WorkloadConfigByProvider := getWorkloadConfigByProvider(provider)
+		workloadConfig = WorkloadConfigByProvider
 		if c.GetName() == common.LocalCluster {
 			log.Printf("%s cluster add rancher check\n", c.GetName())
 			workloadConfig.Deployment = append(workloadConfig.Deployment, &apis.WorkloadDetailConfig{
@@ -192,9 +191,7 @@ func Register() error {
 				Regexp:    "\\[(ERROR|WARNING)\\].*",
 				Level:     3,
 			})
-			fmt.Println(len(workloadConfig.Deployment))
 		}
-		fmt.Println(len(workloadConfig.Deployment))
 
 		nodeList, err := kubernetesClient.Clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
