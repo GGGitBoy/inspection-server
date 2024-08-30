@@ -90,12 +90,12 @@ func FullScreenshot(print *Print) error {
 
 	time.Sleep(time.Duration(waitSecond) * time.Second)
 
-	//log.Println("Starting page wait eval")
-	//err := page.Wait(rod.Eval(`() => document.body.scrollHeight <= (window.scrollY + window.innerHeight)`))
-	//if err != nil {
-	//	log.Printf("Error while waiting for page scroll completion: %v", err)
-	//	return fmt.Errorf("Error while waiting for page scroll completion: %v\n", err)
-	//}
+	log.Println("Starting page wait scroll end")
+	err = page.Wait(rod.Eval(`() => document.body.scrollHeight <= (window.scrollY + window.innerHeight)`))
+	if err != nil {
+		log.Printf("Error while waiting for page scroll completion: %v", err)
+		return fmt.Errorf("Error while waiting for page scroll completion: %v\n", err)
+	}
 
 	log.Println("Starting get page width, height")
 
