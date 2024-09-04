@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 )
@@ -13,22 +12,20 @@ import (
 func ReadFile(path string) ([]byte, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		log.Printf("Failed to open file at path: %s, error: %v", path, err)
-		return nil, err
+		return nil, fmt.Errorf("Failed to open file at path: %s, error: %v\n", path, err)
 	}
 	defer func() {
 		if cerr := file.Close(); cerr != nil {
-			log.Printf("Failed to close file at path: %s, error: %v", path, cerr)
+			logrus.Errorf("Failed to close file at path: %s, error: %v", path, cerr)
 		}
 	}()
 
 	content, err := io.ReadAll(file)
 	if err != nil {
-		log.Printf("Failed to read file at path: %s, error: %v", path, err)
-		return nil, err
+		return nil, fmt.Errorf("Failed to read file at path: %s, error: %v\n", path, err)
 	}
 
-	log.Printf("Successfully read file at path: %s", path)
+	logrus.Infof("[File] Successfully read file at path: %s", path)
 	return content, nil
 }
 
@@ -36,28 +33,25 @@ func ReadFile(path string) ([]byte, error) {
 func WriteFile(path string, data []byte) error {
 	err := os.MkdirAll(filepath.Dir(path), 0755)
 	if err != nil {
-		log.Printf("Failed to create directories for path: %s, error: %v", path, err)
-		return err
+		return fmt.Errorf("Failed to create directories for path: %s, error: %v\n", path, err)
 	}
 
 	file, err := os.Create(path)
 	if err != nil {
-		log.Printf("Failed to create file at path: %s, error: %v", path, err)
-		return err
+		return fmt.Errorf("Failed to create file at path: %s, error: %v\n", path, err)
 	}
 	defer func() {
 		if cerr := file.Close(); cerr != nil {
-			log.Printf("Failed to close file at path: %s, error: %v", path, cerr)
+			logrus.Errorf("Failed to close file at path: %s, error: %v", path, cerr)
 		}
 	}()
 
 	_, err = file.Write(data)
 	if err != nil {
-		log.Printf("Failed to write data to file at path: %s, error: %v", path, err)
-		return err
+		return fmt.Errorf("Failed to write data to file at path: %s, error: %v\n", path, err)
 	}
 
-	log.Printf("Successfully wrote data to file at path: %s", path)
+	logrus.Infof("[File] Successfully wrote data to file at path: %s", path)
 	return nil
 }
 
@@ -68,7 +62,7 @@ func DeleteFile(path string) error {
 			return fmt.Errorf("Failed to delete file path %s: %v\n", path, err)
 		}
 
-		log.Printf("Successfully delete file at path: %s", path)
+		logrus.Infof("[File] Successfully delete file at path: %s", path)
 	}
 
 	return nil
@@ -86,6 +80,6 @@ func FileExists(filename string) bool {
 		return false
 	}
 
-	log.Printf("Failed to check file existence at path: %s, error: %v", filename, err)
+	logrus.Errorf("[File] Failed to check file existence at path: %s, error: %v", filename, err)
 	return false
 }

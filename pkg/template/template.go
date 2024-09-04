@@ -15,7 +15,7 @@ import (
 )
 
 func Register() error {
-	logrus.Infof("Starting template registration process...")
+	logrus.Infof("[Template] Starting template registration process...")
 
 	localKubernetesClient, err := common.GetKubernetesClient(common.LocalCluster)
 	if err != nil {
@@ -32,7 +32,7 @@ func Register() error {
 
 	for _, c := range clusters.Items {
 		clusterName := c.GetName()
-		logrus.Infof("Processing cluster: %s\n", clusterName)
+		logrus.Infof("[Template] Processing cluster: %s\n", clusterName)
 
 		spec, _, err := unstructured.NestedMap(c.UnstructuredContent(), "spec")
 		if err != nil {
@@ -66,7 +66,7 @@ func Register() error {
 		workloadConfig := apis.NewWorkloadConfig()
 		workloadConfig = getWorkloadConfigByProvider(provider)
 		if c.GetName() == common.LocalCluster {
-			logrus.Infof("%s cluster add rancher check\n", c.GetName())
+			logrus.Infof("[Template] %s cluster add rancher check\n", c.GetName())
 			workloadConfig.Deployment = append(workloadConfig.Deployment, &apis.WorkloadDetailConfig{
 				Name:      "rancher",
 				Namespace: "cattle-system",
@@ -116,7 +116,7 @@ func Register() error {
 
 	template, err = db.GetTemplate("Default")
 	if err != nil {
-		logrus.Infof("Creating template in the database...")
+		logrus.Infof("[Template] Creating template in the database...")
 		t := &apis.Template{
 			ID:               "Default",
 			Name:             "Default",
@@ -127,14 +127,14 @@ func Register() error {
 			return fmt.Errorf("failed to create template: %w", err)
 		}
 	} else {
-		logrus.Infof("Updating template in the database...")
+		logrus.Infof("[Template] Updating template in the database...")
 		template.KubernetesConfig = kubernetesConfig
 		if err := db.UpdateTemplate(template); err != nil {
 			return fmt.Errorf("failed to update template: %w", err)
 		}
 	}
 
-	logrus.Infof("Template registration completed successfully.")
+	logrus.Infof("[Template] Template registration completed successfully.")
 	return nil
 }
 

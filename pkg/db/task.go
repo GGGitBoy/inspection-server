@@ -16,7 +16,7 @@ func GetTask(ID string) (*apis.Task, error) {
 		return nil, fmt.Errorf("Error scanning task row: %v\n", err)
 	}
 
-	logrus.Infof("Task retrieved successfully with ID: %s", task.ID)
+	logrus.Infof("[DB] Task get successfully with ID: %s", task.ID)
 	return task, nil
 }
 
@@ -43,7 +43,7 @@ func ListTask() ([]*apis.Task, error) {
 		return nil, fmt.Errorf("Error iterating over task rows: %v\n", err)
 	}
 
-	logrus.Infof("Tasks retrieved successfully, total count: %d", len(tasks))
+	logrus.Infof("[DB] Tasks get successfully, total count: %d", len(tasks))
 	return tasks, nil
 }
 
@@ -71,7 +71,7 @@ func CreateTask(task *apis.Task) error {
 		return fmt.Errorf("Error committing transaction: %v\n", err)
 	}
 
-	logrus.Infof("Task created successfully with ID: %s", task.ID)
+	logrus.Infof("[DB] Task created successfully with ID: %s", task.ID)
 	return nil
 }
 
@@ -82,7 +82,7 @@ func UpdateTask(task *apis.Task) error {
 		return fmt.Errorf("Error updating task: %v\n", err)
 	}
 
-	logrus.Infof("Task updated successfully with ID: %s", task.ID)
+	logrus.Infof("[DB] Task updated successfully with ID: %s", task.ID)
 	return nil
 }
 
@@ -99,9 +99,9 @@ func DeleteTask(ID string) error {
 	}
 
 	if rowsAffected == 0 {
-		logrus.Infof("No task found to delete with ID: %s", ID)
+		logrus.Infof("[DB] No task found to delete with ID: %s", ID)
 	} else {
-		logrus.Infof("Task deleted successfully with ID: %s", ID)
+		logrus.Infof("[DB] Task deleted successfully with ID: %s", ID)
 	}
 
 	return nil

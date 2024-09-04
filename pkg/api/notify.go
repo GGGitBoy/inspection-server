@@ -211,14 +211,14 @@ func TestNotify() http.Handler {
 		message := "测试成功"
 
 		if notify.WebhookURL != "" && notify.Secret != "" {
-			err = send.Webhook(notify.WebhookURL, notify.Secret, message)
+			err = send.Webhook(notify.WebhookURL, notify.Secret, message, "Test")
 			if err != nil {
 				logrus.Errorf("Failed to send test notification: %v", err)
 				common.HandleError(rw, http.StatusInternalServerError, err)
 				return
 			}
 		} else {
-			err = send.Notify(notify.AppID, notify.AppSecret, common.SendTestPDFName, common.SendTestPDFPath, message)
+			err = send.Notify(notify.AppID, notify.AppSecret, common.SendTestPDFName, common.SendTestPDFPath, message, "Test")
 			if err != nil {
 				logrus.Errorf("Failed to send test notification: %v", err)
 				common.HandleError(rw, http.StatusInternalServerError, err)

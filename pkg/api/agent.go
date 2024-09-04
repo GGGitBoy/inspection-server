@@ -13,7 +13,7 @@ import (
 
 func ListAgent() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		logrus.Info("Received request to list agents")
+		logrus.Infof("[API] Received request to list agents")
 
 		localKubernetesClient, err := common.GetKubernetesClient(common.LocalCluster)
 		if err != nil {
@@ -31,7 +31,7 @@ func ListAgent() http.Handler {
 
 		var listAgent []string
 		for _, c := range clusterList.Items {
-			logrus.Infof("Checking agent for cluster: %s", c.GetName())
+			logrus.Infof("[API] Checking agent for cluster: %s", c.GetName())
 
 			if !common.IsClusterReady(c) {
 				logrus.Errorf("cluster %s is not ready", c.GetName())
@@ -47,14 +47,14 @@ func ListAgent() http.Handler {
 			_, err = kubernetesClient.Clientset.AppsV1().DaemonSets(common.InspectionNamespace).Get(context.TODO(), common.AgentName, metav1.GetOptions{})
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
-					logrus.Infof("Agent not found in cluster %s", c.GetName())
+					logrus.Infof("[API] Agent not found in cluster %s", c.GetName())
 				} else {
 					logrus.Errorf("Failed to get DaemonSet for cluster %s: %v", c.GetName(), err)
 				}
 				continue
 			}
 
-			logrus.Infof("Agent found in cluster: %s", c.GetName())
+			logrus.Infof("[API] Agent found in cluster: %s", c.GetName())
 			listAgent = append(listAgent, c.GetName())
 		}
 
@@ -65,7 +65,7 @@ func ListAgent() http.Handler {
 			return
 		}
 
-		logrus.Info("Returning agent list")
+		logrus.Infof("[API] Returning agent list")
 		rw.Header().Set("Content-Type", "application/json")
 		rw.Write(jsonData)
 	})
@@ -76,7 +76,7 @@ func DeleteAgent() http.Handler {
 		vars := mux.Vars(req)
 		clusterID := vars["id"]
 
-		logrus.Infof("Received request to delete agent for cluster: %s", clusterID)
+		logrus.Infof("[API] Received request to delete agent for cluster: %s", clusterID)
 
 		kubernetesClient, err := common.GetKubernetesClient(clusterID)
 		if err != nil {
@@ -88,7 +88,7 @@ func DeleteAgent() http.Handler {
 		err = kubernetesClient.Clientset.AppsV1().DaemonSets(common.InspectionNamespace).Delete(context.TODO(), common.AgentName, metav1.DeleteOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				logrus.Infof("DaemonSet not found in cluster %s", clusterID)
+				logrus.Infof("[API] DaemonSet not found in cluster %s", clusterID)
 			} else {
 				logrus.Errorf("Failed to delete DaemonSet for cluster %s: %v", clusterID, err)
 				common.HandleError(rw, http.StatusInternalServerError, err)
@@ -99,7 +99,7 @@ func DeleteAgent() http.Handler {
 		err = kubernetesClient.Clientset.CoreV1().ConfigMaps(common.InspectionNamespace).Delete(context.TODO(), common.AgentScriptName, metav1.DeleteOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				logrus.Infof("ConfigMap not found in cluster %s", clusterID)
+				logrus.Infof("[API] ConfigMap not found in cluster %s", clusterID)
 			} else {
 				logrus.Errorf("Failed to delete ConfigMap for cluster %s: %v", clusterID, err)
 				common.HandleError(rw, http.StatusInternalServerError, err)
@@ -110,7 +110,7 @@ func DeleteAgent() http.Handler {
 		err = kubernetesClient.Clientset.RbacV1().ClusterRoleBindings().Delete(context.TODO(), common.AgentName, metav1.DeleteOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				logrus.Infof("ClusterRoleBinding not found in cluster %s", clusterID)
+				logrus.Infof("[API] ClusterRoleBinding not found in cluster %s", clusterID)
 			} else {
 				logrus.Errorf("Failed to delete ClusterRoleBinding for cluster %s: %v", clusterID, err)
 				common.HandleError(rw, http.StatusInternalServerError, err)
@@ -121,7 +121,7 @@ func DeleteAgent() http.Handler {
 		err = kubernetesClient.Clientset.CoreV1().ServiceAccounts(common.InspectionNamespace).Delete(context.TODO(), common.AgentName, metav1.DeleteOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				logrus.Infof("ServiceAccount not found in cluster %s", clusterID)
+				logrus.Infof("[API] ServiceAccount not found in cluster %s", clusterID)
 			} else {
 				logrus.Errorf("Failed to delete ServiceAccount for cluster %s: %v", clusterID, err)
 				common.HandleError(rw, http.StatusInternalServerError, err)
@@ -129,7 +129,7 @@ func DeleteAgent() http.Handler {
 			}
 		}
 
-		logrus.Infof("Successfully deleted agent for cluster: %s", clusterID)
+		logrus.Infof("[API] Successfully deleted agent for cluster: %s", clusterID)
 		rw.Write([]byte("删除完成"))
 	})
 }

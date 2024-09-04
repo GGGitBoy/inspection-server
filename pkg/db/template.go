@@ -30,7 +30,7 @@ func GetTemplate(templateID string) (*apis.Template, error) {
 		KubernetesConfig: dataKubernetesConfig,
 	}
 
-	logrus.Infof("Template retrieved successfully with ID: %s", template.ID)
+	logrus.Infof("[DB] Template get successfully with ID: %s", template.ID)
 	return template, nil
 }
 
@@ -67,7 +67,7 @@ func ListTemplate() ([]*apis.Template, error) {
 		return nil, fmt.Errorf("Error iterating over template rows: %v\n", err)
 	}
 
-	logrus.Infof("Templates retrieved successfully, total count: %d", len(templates))
+	logrus.Infof("[DB] Templates get successfully, total count: %d", len(templates))
 	return templates, nil
 }
 
@@ -100,7 +100,7 @@ func CreateTemplate(template *apis.Template) error {
 		return fmt.Errorf("Error committing transaction: %v\n", err)
 	}
 
-	logrus.Infof("Template created successfully with ID: %s", template.ID)
+	logrus.Infof("[DB] Template created successfully with ID: %s", template.ID)
 	return nil
 }
 
@@ -116,7 +116,7 @@ func UpdateTemplate(template *apis.Template) error {
 		return fmt.Errorf("Error updating template: %v\n", err)
 	}
 
-	logrus.Infof("Template updated successfully with ID: %s", template.ID)
+	logrus.Infof("[DB] Template updated successfully with ID: %s", template.ID)
 	return nil
 }
 
@@ -133,9 +133,9 @@ func DeleteTemplate(templateID string) error {
 	}
 
 	if rowsAffected == 0 {
-		logrus.Infof("No template found to delete with ID: %s", templateID)
+		logrus.Infof("[DB] No template found to delete with ID: %s", templateID)
 	} else {
-		logrus.Infof("Template deleted successfully with ID: %s", templateID)
+		logrus.Infof("[DB] Template deleted successfully with ID: %s", templateID)
 	}
 
 	return nil

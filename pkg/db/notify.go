@@ -26,7 +26,7 @@ func GetNotify(notifyID string) (*apis.Notify, error) {
 		Secret:     secret,
 	}
 
-	logrus.Infof("Notify retrieved successfully with ID: %s", notify.ID)
+	logrus.Infof("[DB] Notify get successfully with ID: %s", notify.ID)
 	return notify, nil
 }
 
@@ -58,7 +58,7 @@ func ListNotify() ([]*apis.Notify, error) {
 		return nil, fmt.Errorf("Error iterating over rows: %v\n", err)
 	}
 
-	logrus.Infof("Notifys retrieved successfully, total count: %d", len(notifys))
+	logrus.Infof("[DB] Notifys get successfully, total count: %d", len(notifys))
 	return notifys, nil
 }
 
@@ -86,7 +86,7 @@ func CreateNotify(notify *apis.Notify) error {
 		return fmt.Errorf("Error committing transaction: %v\n", err)
 	}
 
-	logrus.Infof("Notify created successfully with ID: %s", notify.ID)
+	logrus.Infof("[DB] Notify created successfully with ID: %s", notify.ID)
 	return nil
 }
 
@@ -97,7 +97,7 @@ func UpdateNotify(notify *apis.Notify) error {
 		return fmt.Errorf("Error updating notification with ID %s: %v\n", notify.ID, err)
 	}
 
-	logrus.Infof("Notify updated successfully with ID: %s", notify.ID)
+	logrus.Infof("[DB] Notify updated successfully with ID: %s", notify.ID)
 	return nil
 }
 
@@ -114,9 +114,9 @@ func DeleteNotify(ID string) error {
 	}
 
 	if rowsAffected == 0 {
-		logrus.Infof("No notify found to delete with ID: %s", ID)
+		logrus.Infof("[DB] No notify found to delete with ID: %s", ID)
 	} else {
-		logrus.Infof("Notify deleted successfully with ID: %s", ID)
+		logrus.Infof("[DB] Notify deleted successfully with ID: %s", ID)
 	}
 
 	return nil

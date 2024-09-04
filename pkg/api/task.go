@@ -19,7 +19,7 @@ func GetTask() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
 		taskID := vars["id"]
-		logrus.Infof("Received request to get task with ID: %s", taskID)
+		logrus.Infof("[API] Received request to get task with ID: %s", taskID)
 
 		task, err := db.GetTask(taskID)
 		if err != nil {
@@ -40,14 +40,14 @@ func GetTask() http.Handler {
 			logrus.Errorf("Failed to write response for task ID %s: %v", taskID, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 		} else {
-			logrus.Infof("Successfully retrieved and sent task with ID: %s", taskID)
+			logrus.Infof("[API] Successfully retrieved and sent task with ID: %s", taskID)
 		}
 	})
 }
 
 func ListTask() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		logrus.Infof("Received request to list all tasks")
+		logrus.Infof("[API] Received request to list all tasks")
 
 		tasks, err := db.ListTask()
 		if err != nil {
@@ -68,14 +68,14 @@ func ListTask() http.Handler {
 			logrus.Errorf("Failed to write response for task list: %v", err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 		} else {
-			logrus.Infof("Successfully retrieved and sent task list")
+			logrus.Infof("[API] Successfully retrieved and sent task list")
 		}
 	})
 }
 
 func CreateTask() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		logrus.Infof("Received request to create a new task")
+		logrus.Infof("[API] Received request to create a new task")
 
 		task := apis.NewTask()
 		body, err := io.ReadAll(req.Body)
@@ -138,7 +138,7 @@ func CreateTask() http.Handler {
 		}
 
 		rw.Write([]byte("创建完成"))
-		logrus.Infof("Successfully created and scheduled task with ID: %s", task.ID)
+		logrus.Infof("[API] Successfully created and scheduled task with ID: %s", task.ID)
 	})
 }
 
@@ -146,7 +146,7 @@ func DeleteTask() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
 		taskID := vars["id"]
-		logrus.Infof("Received request to delete task with ID: %s", taskID)
+		logrus.Infof("[API] Received request to delete task with ID: %s", taskID)
 
 		task, err := db.GetTask(taskID)
 		if err != nil {
@@ -253,6 +253,6 @@ func DeleteTask() http.Handler {
 		}
 
 		rw.Write([]byte("删除完成"))
-		logrus.Infof("Successfully deleted task with ID: %s", taskID)
+		logrus.Infof("[API] Successfully deleted task with ID: %s", taskID)
 	})
 }

@@ -2,7 +2,7 @@ package common
 
 import (
 	"fmt"
-	"log"
+	"github.com/sirupsen/logrus"
 	"os"
 )
 
@@ -44,7 +44,7 @@ var (
 func getEnv(key, defaultValue string) string {
 	value, exists := os.LookupEnv(key)
 	if !exists {
-		log.Printf("Environment variable %s not set, using default value: %s", key, defaultValue)
+		logrus.Infof("Environment variable %s not set, using default value: %s", key, defaultValue)
 		return defaultValue
 	}
 	return value
@@ -53,6 +53,6 @@ func getEnv(key, defaultValue string) string {
 // GetReportFileName generates the report file name using the provided time string.
 func GetReportFileName(time string) string {
 	fileName := fmt.Sprintf("Report(%s).pdf", time)
-	log.Printf("Generated report file name: %s", fileName)
+	logrus.Debugf("Generated report file name: %s", fileName)
 	return fileName
 }

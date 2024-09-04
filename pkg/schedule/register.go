@@ -40,7 +40,7 @@ func Register() error {
 		}
 	}
 
-	logrus.Infof("All tasks registered successfully.")
+	logrus.Infof("[Schedule] All tasks registered successfully.")
 	return nil
 }
 
@@ -57,7 +57,7 @@ func AddSchedule(task *apis.Task) error {
 	if err != nil {
 		logrus.Errorf("Failed to add schedule for task %s: %v", task.ID, err)
 	} else {
-		logrus.Infof("Schedule added for task %s", task.ID)
+		logrus.Infof("[Schedule] Schedule added for task %s", task.ID)
 	}
 
 	logrus.Debug("Current TaskMap keys:")
@@ -81,7 +81,7 @@ func RemoveSchedule(task *apis.Task) error {
 	if err != nil {
 		logrus.Errorf("Failed to remove schedule for task %s: %v", task.ID, err)
 	} else {
-		logrus.Infof("Schedule removed for task %s", task.ID)
+		logrus.Infof("[Schedule] Schedule removed for task %s", task.ID)
 	}
 
 	logrus.Debug("Current TaskMap keys:")

@@ -65,7 +65,7 @@ func GenerateKubeconfig(clients map[string]*apis.Client) error {
 
 	for _, c := range clusters.Items {
 		clusterName := c.GetName()
-		logrus.Infof("Processing cluster: %s", clusterName)
+		logrus.Infof("[Kubeconfig] Processing cluster: %s", clusterName)
 
 		if !IsClusterReady(c) {
 			logrus.Errorf("cluster %s is not ready", c.GetName())
@@ -157,7 +157,7 @@ func WriteKubeconfig(clusterID string) error {
 		return err
 	}
 
-	logrus.Infof("Successfully wrote kubeconfig for cluster %s to path: %s", clusterID, kubeconfigPath)
+	logrus.Infof("[Kubeconfig] Successfully wrote kubeconfig for cluster %s to path: %s", clusterID, kubeconfigPath)
 	return nil
 }
 
@@ -182,7 +182,7 @@ func GetClient(kubeconfigPath string) (*apis.Client, error) {
 		return nil, err
 	}
 
-	logrus.Infof("Successfully created Kubernetes client from path: %s", configPath)
+	logrus.Infof("[Kubeconfig] Successfully created Kubernetes client from path: %s", configPath)
 	return &apis.Client{
 		DynamicClient: dynamicClient,
 		Clientset:     clientset,

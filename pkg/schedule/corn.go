@@ -36,9 +36,9 @@ func AddCornTask(task *apis.Task) error {
 			return
 		}
 
-		logrus.Infof("Executing task: %s", newTask.ID)
+		logrus.Infof("[Schedule] Executing task: %s", newTask.ID)
 		go ExecuteTask(newTask)
-		logrus.Infof("Task %s is executing", newTask.ID)
+		logrus.Infof("[Schedule] Task %s is executing", newTask.ID)
 	})
 	if err != nil {
 		return fmt.Errorf("Error adding cron job: %v\n", err)
@@ -48,7 +48,7 @@ func AddCornTask(task *apis.Task) error {
 		Cron: entryID,
 	}
 
-	logrus.Infof("Scheduled task %s to execute at %s", task.ID, task.Cron)
+	logrus.Infof("[Schedule] Scheduled task %s to execute at %s", task.ID, task.Cron)
 
 	return nil
 }
@@ -60,12 +60,12 @@ func RemoveCorntask(taskID string) error {
 	if s, exists := TaskMap[taskID]; exists {
 		CronClient.Remove(s.Cron)
 		delete(TaskMap, taskID)
-		logrus.Infof("Deleted scheduled task with ID %s", taskID)
+		logrus.Infof("[Schedule] Deleted scheduled task with ID %s", taskID)
 	} else {
-		logrus.Infof("No scheduled task found with ID %s", taskID)
+		logrus.Warnf("[Schedule] No scheduled task found with ID %s", taskID)
 	}
 
-	logrus.Infof("Removed task with ID: %s", taskID)
+	logrus.Infof("[Schedule] Removed task with ID: %s", taskID)
 
 	return nil
 }

@@ -1,13 +1,13 @@
 package common
 
 import (
-	"log"
+	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
 func HandleError(rw http.ResponseWriter, code int, err error) {
 	// Logging the error with status code
-	log.Printf("HTTP %d - %s", code, err.Error())
+	logrus.Debugf("HTTP %d - %s", code, err.Error())
 
 	// Setting the response header with the error code
 	rw.WriteHeader(code)
@@ -16,6 +16,6 @@ func HandleError(rw http.ResponseWriter, code int, err error) {
 	_, writeErr := rw.Write([]byte(err.Error()))
 	if writeErr != nil {
 		// Logging in case of failure to write the error message to response
-		log.Printf("Failed to write error message to response: %s", writeErr.Error())
+		logrus.Errorf("Failed to write error message to response: %s", writeErr.Error())
 	}
 }

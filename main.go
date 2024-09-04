@@ -92,7 +92,7 @@ func main() {
 
 	app.Action = func(ctx *cli.Context) error {
 		router := server.Start()
-		logrus.Infof("Server running, listening at: %d\n", port)
+		logrus.Infof("[Main] Server running, listening at: %d\n", port)
 
 		err := http.ListenAndServe(fmt.Sprintf(":%d", port), router)
 		if err != nil {

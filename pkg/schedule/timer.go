@@ -16,7 +16,7 @@ func AddTimeTask(task *apis.Task) error {
 	}
 
 	duration := time.Until(startTime)
-	logrus.Infof("Task %s will execute after %.2f minutes", task.ID, duration.Minutes())
+	logrus.Infof("[Schedule] Task %s will execute after %.2f minutes", task.ID, duration.Minutes())
 	if duration <= 0 {
 		go ExecuteTask(task)
 		logrus.Warnf("Task %s is scheduled with a past time. Executing immediately.", task.ID)
@@ -27,7 +27,7 @@ func AddTimeTask(task *apis.Task) error {
 	defer TaskMutex.Unlock()
 
 	timer := time.AfterFunc(duration, func() {
-		logrus.Infof("Executing task %s", task.ID)
+		logrus.Infof("[Schedule] Executing task %s", task.ID)
 		go ExecuteTask(task)
 	})
 
@@ -35,7 +35,7 @@ func AddTimeTask(task *apis.Task) error {
 		Timer: timer,
 	}
 
-	logrus.Infof("Scheduled task %s to execute at %s", task.ID, task.StartTime)
+	logrus.Infof("[Schedule] Scheduled task %s to execute at %s", task.ID, task.StartTime)
 	return nil
 }
 
@@ -48,9 +48,9 @@ func RemoveTimetask(taskID string) error {
 			logrus.Warnf("Timer for task %s has already executed or stopped", taskID)
 		}
 		delete(TaskMap, taskID)
-		logrus.Infof("Deleted scheduled task %s", taskID)
+		logrus.Infof("[Schedule] Deleted scheduled task %s", taskID)
 	} else {
-		logrus.Warnf("No scheduled task found with ID %s", taskID)
+		logrus.Warnf("[Schedule] No scheduled task found with ID %s", taskID)
 	}
 
 	return nil

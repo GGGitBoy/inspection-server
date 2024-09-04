@@ -25,7 +25,7 @@ func NewPrint() *Print {
 	return &Print{}
 }
 
-func FullScreenshot(print *Print) error {
+func FullScreenshot(print *Print, taskName string) error {
 	time.Sleep(2 * time.Second)
 	if common.PrintWaitSecond != "" {
 		num, err := strconv.Atoi(common.PrintWaitSecond)
@@ -52,20 +52,20 @@ func FullScreenshot(print *Print) error {
 	}
 	defer browser.Close()
 
-	logrus.Infof("Starting page load")
+	logrus.Infof("[%s] Starting page load", taskName)
 	page, err := browser.Page(proto.TargetCreateTarget{URL: print.URL})
 	if err != nil {
 		return fmt.Errorf("Failed to get page: %v\n", err)
 	}
 
-	logrus.Infof("Starting wait load")
+	logrus.Infof("[%s] Starting wait load", taskName)
 	err = page.Timeout(15 * time.Minute).WaitLoad()
 	if err != nil {
 		return fmt.Errorf("Failed to wait load: %v\n", err)
 	}
 
 	time.Sleep(time.Duration(waitSecond) * time.Second)
-	logrus.Infof("Starting page scroll")
+	logrus.Infof("[%s] Starting page scroll", taskName)
 
 	_, err = page.Timeout(15 * time.Minute).Eval(`() => {
 		var totalHeight = 0;
@@ -85,13 +85,13 @@ func FullScreenshot(print *Print) error {
 
 	time.Sleep(time.Duration(waitSecond) * time.Second)
 
-	logrus.Infof("Starting page wait scroll end")
+	logrus.Infof("[%s] Starting page wait scroll end", taskName)
 	err = page.Timeout(15 * time.Minute).Wait(rod.Eval(`() => document.body.scrollHeight <= (window.scrollY + window.innerHeight)`))
 	if err != nil {
 		return fmt.Errorf("Error while waiting for page scroll completion: %v\n", err)
 	}
 
-	logrus.Infof("Starting get page width, height")
+	logrus.Infof("[%s] Starting get page width, height", taskName)
 
 	metrics, err := page.Timeout(15 * time.Minute).Eval(`() => ({
 		width: document.body.scrollWidth,
@@ -101,7 +101,7 @@ func FullScreenshot(print *Print) error {
 		return fmt.Errorf("Failed get page width, height: %v\n", err)
 	}
 
-	logrus.Infof("Page dimensions: width=%d, height=%d", metrics.Value.Get("width").Int(), metrics.Value.Get("height").Int())
+	logrus.Infof("[%s] Page dimensions: width=%d, height=%d", taskName, metrics.Value.Get("width").Int(), metrics.Value.Get("height").Int())
 
 	page.MustSetViewport(metrics.Value.Get("width").Int(), metrics.Value.Get("height").Int(), 1, false)
 
@@ -109,22 +109,15 @@ func FullScreenshot(print *Print) error {
 	if err != nil {
 		return fmt.Errorf("Failed to capture screenshot: %v\n", err)
 	}
-	logrus.Infof("Screenshot captured successfully")
+	logrus.Infof("[%s] Screenshot captured successfully", taskName)
 
 	err = common.WriteFile(common.PrintShotPath, screenshot)
 	if err != nil {
 		return fmt.Errorf("Failed to save screenshot: %v\n", err)
 	}
 
-	err = ToPrintPDF(print)
-	if err != nil {
-		return fmt.Errorf("Failed to generate PDF: %v\n", err)
-	}
+	logrus.Infof("[%s] Starting create PDF", taskName)
 
-	return nil
-}
-
-func ToPrintPDF(print *Print) error {
 	imgFile, err := os.Open(common.PrintShotPath)
 	if err != nil {
 		return fmt.Errorf("Failed to open screenshot file: %v\n", err)
@@ -161,6 +154,6 @@ func ToPrintPDF(print *Print) error {
 		return fmt.Errorf("Failed to save PDF: %v\n", err)
 	}
 
-	logrus.Infof("PDF generated successfully")
+	logrus.Infof("[%s] PDF generated successfully", taskName)
 	return nil
 }

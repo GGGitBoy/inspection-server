@@ -79,13 +79,13 @@ func GetDB() (*sql.DB, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Error opening MySQL connection: %v, DSN: %s\n", err, dsn)
 		}
-		logrus.Infof("Connected to MySQL database successfully")
+		logrus.Infof("[DB] Connected to MySQL database successfully")
 	} else {
 		DB, err = sql.Open("sqlite3", common.SQLiteName)
 		if err != nil {
 			return nil, fmt.Errorf("Error opening SQLite connection: %v, DB Name: %s\n", err, common.SQLiteName)
 		}
-		logrus.Infof("Connected to SQLite database successfully")
+		logrus.Infof("[DB] Connected to SQLite database successfully")
 	}
 
 	DB.SetMaxOpenConns(25)                 // 最大打开的连接数
@@ -95,7 +95,7 @@ func GetDB() (*sql.DB, error) {
 	if err = DB.Ping(); err != nil {
 		return nil, fmt.Errorf("Error pinging database: %v\n", err)
 	}
-	logrus.Infof("Database connection successful")
+	logrus.Infof("[DB] Database connection successful")
 
 	return DB, nil
 }

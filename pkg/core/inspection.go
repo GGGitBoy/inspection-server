@@ -36,7 +36,7 @@ func Inspection(task *apis.Task) error {
 	report := apis.NewReport()
 	kubernetes := apis.NewKubernetes()
 
-	allGrafanaInspections, err := GetAllGrafanaInspections()
+	allGrafanaInspections, err := GetAllGrafanaInspections(task.Name)
 	if err != nil {
 		return fmt.Errorf("Failed to get all Grafana inspections: %v\n", err)
 	}
@@ -58,26 +58,26 @@ func Inspection(task *apis.Task) error {
 				sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 巡检警告：", k.ClusterName))
 				logrus.Infof("[%s] Processing inspections for cluster: %s", task.Name, k.ClusterName)
 
-				healthCheck, coreInspectionArray, err := GetHealthCheck(client, k.ClusterName)
+				healthCheck, coreInspectionArray, err := GetHealthCheck(client, k.ClusterName, task.Name)
 				if err != nil {
 					return fmt.Errorf("Failed to get health check for cluster %s: %v\n", k.ClusterID, err)
 				}
 				coreInspections = append(coreInspections, coreInspectionArray...)
 
-				NodeNodeArray, nodeInspectionArray, err := GetNodes(client, k.ClusterNodeConfig.NodeConfig)
+				NodeNodeArray, nodeInspectionArray, err := GetNodes(client, k.ClusterNodeConfig.NodeConfig, task.Name)
 				if err != nil {
 					return fmt.Errorf("Failed to get nodes for cluster %s: %v\n", k.ClusterID, err)
 				}
 				nodeInspections = append(nodeInspections, nodeInspectionArray...)
 
-				ResourceWorkloadArray, resourceInspectionArray, err := GetWorkloads(client, k.ClusterResourceConfig.WorkloadConfig)
+				ResourceWorkloadArray, resourceInspectionArray, err := GetWorkloads(client, k.ClusterResourceConfig.WorkloadConfig, task.Name)
 				if err != nil {
 					return fmt.Errorf("Failed to get workloads for cluster %s: %v\n", k.ClusterID, err)
 				}
 				resourceInspections = append(resourceInspections, resourceInspectionArray...)
 
 				if k.ClusterResourceConfig.NamespaceConfig.Enable {
-					ResourceNamespaceArray, resourceInspectionArray, err := GetNamespaces(client)
+					ResourceNamespaceArray, resourceInspectionArray, err := GetNamespaces(client, task.Name)
 					if err != nil {
 						return fmt.Errorf("Failed to get namespaces for cluster %s: %v\n", k.ClusterID, err)
 					}
@@ -87,7 +87,7 @@ func Inspection(task *apis.Task) error {
 				}
 
 				if k.ClusterResourceConfig.ServiceConfig.Enable {
-					ResourceServiceArray, resourceInspectionArray, err := GetServices(client)
+					ResourceServiceArray, resourceInspectionArray, err := GetServices(client, task.Name)
 					if err != nil {
 						return fmt.Errorf("Failed to get services for cluster %s: %v\n", k.ClusterID, err)
 					}
@@ -97,7 +97,7 @@ func Inspection(task *apis.Task) error {
 				}
 
 				if k.ClusterResourceConfig.IngressConfig.Enable {
-					ResourceIngressArray, resourceInspectionArray, err := GetIngress(client)
+					ResourceIngressArray, resourceInspectionArray, err := GetIngress(client, task.Name)
 					if err != nil {
 						return fmt.Errorf("Failed to get ingress for cluster %s: %v\n", k.ClusterID, err)
 					}
@@ -206,7 +206,7 @@ func Inspection(task *apis.Task) error {
 	p := pdfPrint.NewPrint()
 	p.URL = "http://127.0.0.1/#/inspection/result-pdf-view/" + report.ID
 	p.ReportTime = report.Global.ReportTime
-	err = pdfPrint.FullScreenshot(p)
+	err = pdfPrint.FullScreenshot(p, task.Name)
 	if err != nil {
 		return fmt.Errorf("Failed to take screenshot for report ID %s: %v\n", report.ID, err)
 	}
@@ -219,12 +219,12 @@ func Inspection(task *apis.Task) error {
 
 		if notify.WebhookURL != "" && notify.Secret != "" {
 			sb.WriteString(fmt.Sprintf("该巡检报告的访问地址为: %s/api/v1/namespaces/cattle-inspection-system/services/http:access-inspection:80/proxy/#/inspection/result/%s\n", common.ServerURL, report.ID))
-			err = send.Webhook(notify.WebhookURL, notify.Secret, sb.String())
+			err = send.Webhook(notify.WebhookURL, notify.Secret, sb.String(), task.Name)
 			if err != nil {
 				return fmt.Errorf("Failed to send notification: %v\n", err)
 			}
 		} else {
-			err = send.Notify(notify.AppID, notify.AppSecret, common.GetReportFileName(p.ReportTime), common.PrintPDFPath+common.GetReportFileName(p.ReportTime), sb.String())
+			err = send.Notify(notify.AppID, notify.AppSecret, common.GetReportFileName(p.ReportTime), common.PrintPDFPath+common.GetReportFileName(p.ReportTime), sb.String(), task.Name)
 			if err != nil {
 				return fmt.Errorf("Failed to send notification: %v\n", err)
 			}

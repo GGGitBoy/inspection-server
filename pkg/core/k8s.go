@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/utils/strings/slices"
-	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -49,7 +48,8 @@ var (
 	}
 )
 
-func GetHealthCheck(client *apis.Client, clusterName string) (*apis.HealthCheck, []*apis.Inspection, error) {
+func GetHealthCheck(client *apis.Client, clusterName, taskName string) (*apis.HealthCheck, []*apis.Inspection, error) {
+	logrus.Infof("[%s] Starting health check inspection", taskName)
 	healthCheck := apis.NewHealthCheck()
 	coreInspections := apis.NewInspections()
 
@@ -66,7 +66,7 @@ func GetHealthCheck(client *apis.Client, clusterName string) (*apis.HealthCheck,
 		}
 
 		command := "/opt/inspection/inspection.sh"
-		stdout, stderr, err := ExecToPodThroughAPI(client.Clientset, client.Config, command, commands, podList.Items[0].Namespace, podList.Items[0].Name, "inspection-agent-container")
+		stdout, stderr, err := ExecToPodThroughAPI(client.Clientset, client.Config, command, commands, podList.Items[0].Namespace, podList.Items[0].Name, "inspection-agent-container", taskName)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Error executing command in pod %s: %v\n", podList.Items[0].Name, err)
 		}
@@ -102,7 +102,8 @@ func GetHealthCheck(client *apis.Client, clusterName string) (*apis.HealthCheck,
 	return healthCheck, coreInspections, nil
 }
 
-func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node, []*apis.Inspection, error) {
+func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig, taskName string) ([]*apis.Node, []*apis.Inspection, error) {
+	logrus.Infof("[%s] Starting node inspection", taskName)
 	nodeNodeArray := apis.NewNodes()
 	nodeInspections := apis.NewInspections()
 
@@ -134,27 +135,27 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 
 				if float64(limitsCPU)/float64(allocatableCPU) > 0.8 {
 					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Limits CPU", pod.Spec.NodeName), fmt.Sprintf("节点 %s limits CPU 超过百分之 80", pod.Spec.NodeName), 2))
-					logrus.Infof("Node %s High Limits CPU: limits CPU %d, allocatable CPU %d", pod.Spec.NodeName, limitsCPU, allocatableCPU)
+					logrus.Infof("[%s] Node %s High Limits CPU: limits CPU %d, allocatable CPU %d", taskName, pod.Spec.NodeName, limitsCPU, allocatableCPU)
 				}
 
 				if float64(limitsMemory)/float64(allocatableMemory) > 0.8 {
 					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Limits Memory", pod.Spec.NodeName), fmt.Sprintf("节点 %s limits Memory 超过百分之 80", pod.Spec.NodeName), 2))
-					logrus.Infof("Node %s High Limits Memory: limits Memory %d, allocatable Memory %d", pod.Spec.NodeName, limitsMemory, allocatableMemory)
+					logrus.Infof("[%s] Node %s High Limits Memory: limits Memory %d, allocatable Memory %d", taskName, pod.Spec.NodeName, limitsMemory, allocatableMemory)
 				}
 
 				if float64(requestsCPU)/float64(allocatableCPU) > 0.8 {
 					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Requests CPU", pod.Spec.NodeName), fmt.Sprintf("节点 %s requests CPU 超过百分之 80", pod.Spec.NodeName), 2))
-					logrus.Infof("Node %s High Requests CPU: requests CPU %d, allocatable CPU %d", pod.Spec.NodeName, requestsCPU, allocatableCPU)
+					logrus.Infof("[%s] Node %s High Requests CPU: requests CPU %d, allocatable CPU %d", taskName, pod.Spec.NodeName, requestsCPU, allocatableCPU)
 				}
 
 				if float64(requestsMemory)/float64(allocatableMemory) > 0.8 {
 					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Requests Memory", pod.Spec.NodeName), fmt.Sprintf("节点 %s requests Memory 超过百分之 80", pod.Spec.NodeName), 2))
-					logrus.Infof("Node %s High Requests Memory: requests Memory %d, allocatable Memory %d", pod.Spec.NodeName, requestsMemory, allocatableMemory)
+					logrus.Infof("[%s] Node %s High Requests Memory: requests Memory %d, allocatable Memory %d", taskName, pod.Spec.NodeName, requestsMemory, allocatableMemory)
 				}
 
 				if float64(requestsPods)/float64(allocatablePods) > 0.8 {
 					nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s High Requests Pods", pod.Spec.NodeName), fmt.Sprintf("节点 %s requests Pods 超过百分之 80", pod.Spec.NodeName), 2))
-					logrus.Infof("Node %s High Requests Pods: requests Pods %d, allocatable Pods %d", pod.Spec.NodeName, requestsPods, allocatablePods)
+					logrus.Infof("[%s] Node %s High Requests Pods: requests Pods %d, allocatable Pods %d", taskName, pod.Spec.NodeName, requestsPods, allocatablePods)
 				}
 
 				var commands []string
@@ -164,13 +165,13 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 
 				logrus.Debugf("Commands to execute on node %s: %v", pod.Spec.NodeName, commands)
 				command := "/opt/inspection/inspection.sh"
-				stdout, stderr, err := ExecToPodThroughAPI(client.Clientset, client.Config, command, commands, pod.Namespace, pod.Name, "inspection-agent-container")
+				stdout, stderr, err := ExecToPodThroughAPI(client.Clientset, client.Config, command, commands, pod.Namespace, pod.Name, "inspection-agent-container", taskName)
 				if err != nil {
 					return nil, nil, fmt.Errorf("Error executing command in pod %s: %v\n", pod.Name, err)
 				}
 
 				if stderr != "" {
-					log.Printf("Stderr from pod %s: %s", pod.Name, stderr)
+					logrus.Errorf("Stderr from pod %s: %s", pod.Name, stderr)
 				}
 
 				var results []apis.CommandCheckResult
@@ -183,7 +184,7 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 				for _, r := range results {
 					if r.Error != "" {
 						nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("Node %s (%s)", pod.Spec.NodeName, r.Description), fmt.Sprintf("%s", r.Error), 2))
-						log.Printf("Node %s inspection failed (%s): %s", pod.Spec.NodeName, r.Description, r.Error)
+						logrus.Errorf("Node %s inspection failed (%s): %s", pod.Spec.NodeName, r.Description, r.Error)
 					}
 				}
 
@@ -213,8 +214,8 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 
 	return nodeNodeArray, nodeInspections, nil
 }
-func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, command string, commands []string, namespace string, podName string, containerName string) (string, string, error) {
-	logrus.Infof("Starting exec to pod: %s, namespace: %s, container: %s", podName, namespace, containerName)
+func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, command string, commands []string, namespace, podName, containerName, taskName string) (string, string, error) {
+	logrus.Infof("[%s] Starting exec to pod: %s, namespace: %s, container: %s", taskName, podName, namespace, containerName)
 	req := clientset.CoreV1().RESTClient().
 		Post().
 		Resource("pods").
@@ -231,7 +232,7 @@ func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, c
 	for _, c := range commands {
 		req.Param("command", c)
 	}
-	logrus.Infof("Executing command: %s with additional commands: %v", command, commands)
+	logrus.Debugf("Executing command: %s with additional commands: %v", command, commands)
 
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
@@ -252,7 +253,7 @@ func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, c
 		return stdout, stderr, fmt.Errorf("Error executing command: %v\n", err)
 	}
 
-	logrus.Infof("Command execution completed. Stdout: %s, Stderr: %s", stdout, stderr)
+	logrus.Debugf("Command execution completed. Stdout: %s, Stderr: %s", stdout, stderr)
 	return stdout, stderr, nil
 }
 
@@ -265,18 +266,18 @@ func (w *outputWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*apis.Workload, []*apis.Inspection, error) {
-	logrus.Infof("Starting workload inspection")
+func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig, taskName string) (*apis.Workload, []*apis.Inspection, error) {
+	logrus.Infof("[%s] Starting workload inspection", taskName)
 
 	ResourceWorkloadArray := apis.NewWorkload()
 	resourceInspections := apis.NewInspections()
 
 	for _, deploy := range workloadConfig.Deployment {
-		logrus.Infof("Inspecting Deployment: %s in namespace %s", deploy.Name, deploy.Namespace)
+		logrus.Debugf("[%s] Inspecting Deployment: %s in namespace %s", taskName, deploy.Name, deploy.Namespace)
 		deployment, err := client.Clientset.AppsV1().Deployments(deploy.Namespace).Get(context.TODO(), deploy.Name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				log.Printf("Deployment %s not found in namespace %s", deploy.Name, deploy.Namespace)
+				logrus.Warnf("Deployment %s not found in namespace %s", deploy.Name, deploy.Namespace)
 				continue
 			}
 			return nil, nil, fmt.Errorf("Error getting Deployment %s in namespace %s: %v\n", deploy.Name, deploy.Namespace, err)
@@ -297,7 +298,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		}
 
 		set := labels.Set(deployment.Spec.Selector.MatchLabels)
-		pods, err := GetPod(deploy.Regexp, deployment.Namespace, set, client.Clientset)
+		pods, err := GetPod(deploy.Regexp, deployment.Namespace, set, client.Clientset, taskName)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Error getting pods for Deployment %s in namespace %s: %v\n", deploy.Name, deploy.Namespace, err)
 		}
@@ -319,11 +320,11 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 	}
 
 	for _, ds := range workloadConfig.Daemonset {
-		logrus.Infof("Inspecting DaemonSet: %s in namespace %s", ds.Name, ds.Namespace)
+		logrus.Debugf("[%s] Inspecting DaemonSet: %s in namespace %s", ds.Name, ds.Namespace)
 		daemonSet, err := client.Clientset.AppsV1().DaemonSets(ds.Namespace).Get(context.TODO(), ds.Name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				log.Printf("DaemonSet %s not found in namespace %s", ds.Name, ds.Namespace)
+				logrus.Warnf("DaemonSet %s not found in namespace %s", ds.Name, ds.Namespace)
 				continue
 			}
 			return nil, nil, fmt.Errorf("Error getting DaemonSet %s in namespace %s: %v\n", ds.Name, ds.Namespace, err)
@@ -344,7 +345,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		}
 
 		set := labels.Set(daemonSet.Spec.Selector.MatchLabels)
-		pods, err := GetPod(ds.Regexp, daemonSet.Namespace, set, client.Clientset)
+		pods, err := GetPod(ds.Regexp, daemonSet.Namespace, set, client.Clientset, taskName)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Error getting pods for DaemonSet %s in namespace %s: %v\n", ds.Name, ds.Namespace, err)
 		}
@@ -366,11 +367,11 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 	}
 
 	for _, sts := range workloadConfig.Statefulset {
-		logrus.Infof("Inspecting StatefulSet: %s in namespace %s", sts.Name, sts.Namespace)
+		logrus.Debugf("[%s] Inspecting StatefulSet: %s in namespace %s", taskName, sts.Name, sts.Namespace)
 		statefulset, err := client.Clientset.AppsV1().StatefulSets(sts.Namespace).Get(context.TODO(), sts.Name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				log.Printf("StatefulSet %s not found in namespace %s", sts.Name, sts.Namespace)
+				logrus.Warnf("StatefulSet %s not found in namespace %s", sts.Name, sts.Namespace)
 				continue
 			}
 			return nil, nil, fmt.Errorf("Error getting StatefulSet %s in namespace %s: %v\n", sts.Name, sts.Namespace, err)
@@ -391,7 +392,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		}
 
 		set := labels.Set(statefulset.Spec.Selector.MatchLabels)
-		pods, err := GetPod(sts.Regexp, statefulset.Namespace, set, client.Clientset)
+		pods, err := GetPod(sts.Regexp, statefulset.Namespace, set, client.Clientset, taskName)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Error getting pods for StatefulSet %s in namespace %s: %v\n", sts.Name, sts.Namespace, err)
 		}
@@ -413,11 +414,11 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 	}
 
 	for _, j := range workloadConfig.Job {
-		logrus.Infof("Inspecting Job: %s in namespace %s", j.Name, j.Namespace)
+		logrus.Debugf("[%s] Inspecting Job: %s in namespace %s", taskName, j.Name, j.Namespace)
 		job, err := client.Clientset.BatchV1().Jobs(j.Namespace).Get(context.TODO(), j.Name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				log.Printf("Job %s not found in namespace %s", j.Name, j.Namespace)
+				logrus.Warnf("Job %s not found in namespace %s", j.Name, j.Namespace)
 				continue
 			}
 			return nil, nil, fmt.Errorf("Error getting Job %s in namespace %s: %v\n", j.Name, j.Namespace, err)
@@ -438,7 +439,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		}
 
 		set := labels.Set(job.Spec.Selector.MatchLabels)
-		pods, err := GetPod(j.Regexp, j.Namespace, set, client.Clientset)
+		pods, err := GetPod(j.Regexp, j.Namespace, set, client.Clientset, taskName)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Error getting pods for Job %s in namespace %s: %v\n", j.Name, j.Namespace, err)
 		}
@@ -459,12 +460,12 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig) (*ap
 		}
 	}
 
-	logrus.Infof("Workload inspection completed")
+	logrus.Infof("[%s] Workload inspection completed", taskName)
 	return ResourceWorkloadArray, resourceInspections, nil
 }
 
-func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernetes.Clientset) ([]*apis.Pod, error) {
-	logrus.Infof("Starting to get pods in namespace %s with labels %s", namespace, set.String())
+func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernetes.Clientset, taskName string) ([]*apis.Pod, error) {
+	logrus.Infof("[%s] Starting to get pods in namespace %s with labels %s", taskName, namespace, set.String())
 
 	pods := apis.NewPods()
 
@@ -481,24 +482,24 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 		wg.Add(1)
 		go func(pod corev1.Pod) {
 			defer wg.Done()
-			logrus.Infof("Processing pod: %s", pod.Name)
+			logrus.Infof("[%s] Processing pod: %s", taskName, pod.Name)
 
 			if len(pod.Spec.Containers) == 0 {
-				log.Printf("Error getting logs for pod %s: container is zero", pod.Name)
+				logrus.Errorf("Error getting logs for pod %s: container is zero", pod.Name)
 				return
 			}
 
 			getLog := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{Container: pod.Spec.Containers[0].Name, TailLines: &line})
 			podLogs, err := getLog.Stream(context.TODO())
 			if err != nil {
-				log.Printf("Error getting logs for pod %s: %v", pod.Name, err)
+				logrus.Errorf("Error getting logs for pod %s: %v", pod.Name, err)
 				return
 			}
 			defer podLogs.Close()
 
 			logs, err := io.ReadAll(podLogs)
 			if err != nil {
-				log.Printf("Error reading logs for pod %s: %v", pod.Name, err)
+				logrus.Errorf("Error reading logs for pod %s: %v", pod.Name, err)
 				return
 			}
 
@@ -509,7 +510,7 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 
 			re, err := regexp.Compile(regexpString)
 			if err != nil {
-				log.Printf("Error compiling regex for pod %s: %v", pod.Name, err)
+				logrus.Errorf("Error compiling regex for pod %s: %v", pod.Name, err)
 				return
 			}
 
@@ -529,12 +530,12 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 	}
 	wg.Wait()
 
-	logrus.Infof("Completed pod retrieval in namespace %s", namespace)
+	logrus.Infof("[%s] Completed pod retrieval in namespace %s", taskName, namespace)
 	return pods, nil
 }
 
-func GetNamespaces(client *apis.Client) ([]*apis.Namespace, []*apis.Inspection, error) {
-	logrus.Infof("Starting to get namespaces")
+func GetNamespaces(client *apis.Client, taskName string) ([]*apis.Namespace, []*apis.Inspection, error) {
+	logrus.Infof("[%s] Starting namespaces inspection", taskName)
 
 	resourceInspections := apis.NewInspections()
 	namespaces := apis.NewNamespaces()
@@ -639,12 +640,12 @@ func GetNamespaces(client *apis.Client) ([]*apis.Namespace, []*apis.Inspection, 
 		logrus.Debugf("Processed namespace: %s", n.Name)
 	}
 
-	logrus.Infof("Completed namespace retrieval")
+	logrus.Infof("[%s] Completed namespace retrieval", taskName)
 	return namespaces, resourceInspections, nil
 }
 
-func GetServices(client *apis.Client) ([]*apis.Service, []*apis.Inspection, error) {
-	logrus.Infof("Starting to get services")
+func GetServices(client *apis.Client, taskName string) ([]*apis.Service, []*apis.Inspection, error) {
+	logrus.Infof("[%s] Starting services inspection", taskName)
 
 	resourceInspections := apis.NewInspections()
 	services := apis.NewServices()
@@ -659,7 +660,7 @@ func GetServices(client *apis.Client) ([]*apis.Service, []*apis.Inspection, erro
 		endpoints, err := client.Clientset.CoreV1().Endpoints(s.Namespace).Get(context.TODO(), s.Name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				log.Printf("Service %s/%s does not have corresponding endpoints", s.Namespace, s.Name)
+				logrus.Warnf("Service %s/%s does not have corresponding endpoints", s.Namespace, s.Name)
 				resourceInspections = append(resourceInspections, apis.NewInspection(
 					fmt.Sprintf("命名空间 %s 下 Service %s 找不到对应 endpoint", s.Namespace, s.Name),
 					"对应的 Endpoints 未找到",
@@ -687,11 +688,11 @@ func GetServices(client *apis.Client) ([]*apis.Service, []*apis.Inspection, erro
 		})
 	}
 
-	logrus.Infof("Completed getting services")
+	logrus.Infof("[%s] Completed getting services", taskName)
 	return services, resourceInspections, nil
 }
-func GetIngress(client *apis.Client) ([]*apis.Ingress, []*apis.Inspection, error) {
-	logrus.Infof("Starting to get ingresses")
+func GetIngress(client *apis.Client, taskName string) ([]*apis.Ingress, []*apis.Inspection, error) {
+	logrus.Infof("[%s] Starting ingresses inspection", taskName)
 
 	resourceInspections := apis.NewInspections()
 	ingress := apis.NewIngress()
@@ -724,7 +725,7 @@ func GetIngress(client *apis.Client) ([]*apis.Ingress, []*apis.Inspection, error
 			for _, ingressName := range ingressNames {
 				duplicateIngress[ingressName] = 1
 			}
-			log.Printf("Found duplicate ingress with same path: %s, Ingress list: %v", key, ingressNames)
+			logrus.Warnf("Found duplicate ingress with same path: %s, Ingress list: %v", key, ingressNames)
 		}
 	}
 
@@ -752,7 +753,7 @@ func GetIngress(client *apis.Client) ([]*apis.Ingress, []*apis.Inspection, error
 		))
 	}
 
-	logrus.Infof("Completed getting ingresses")
+	logrus.Infof("[%s] Completed getting ingresses", taskName)
 	return ingress, resourceInspections, nil
 }
 

@@ -21,7 +21,7 @@ import (
 var image = "cnrancher/inspection-agent:v1.0.0"
 
 func Register() error {
-	logrus.Infof("Starting registration of inspection agents")
+	logrus.Infof("[Agent] Starting registration of inspection agents")
 
 	localKubernetesClient, err := common.GetKubernetesClient(common.LocalCluster)
 	if err != nil {
@@ -36,7 +36,7 @@ func Register() error {
 	}
 
 	for _, c := range clusters.Items {
-		logrus.Infof("Processing cluster: %s", c.GetName())
+		logrus.Infof("[Agent] Processing cluster: %s", c.GetName())
 
 		if !common.IsClusterReady(c) {
 			logrus.Errorf("cluster %s is not ready", c.GetName())
@@ -55,14 +55,14 @@ func Register() error {
 			continue
 		}
 
-		logrus.Infof("Successfully registered inspection agent for cluster: %s", c.GetName())
+		logrus.Infof("[Agent] Successfully registered inspection agent for cluster: %s", c.GetName())
 	}
 
 	return nil
 }
 
 func CreateAgent(clientset *kubernetes.Clientset) error {
-	logrus.Info("Creating inspection agent resources")
+	logrus.Infof("[Agent] Creating inspection agent resources")
 
 	if err := ApplyNamespace(clientset); err != nil {
 		logrus.Errorf("Failed to apply namespace: %v", err)
@@ -89,12 +89,12 @@ func CreateAgent(clientset *kubernetes.Clientset) error {
 		return err
 	}
 
-	logrus.Info("Successfully created all inspection agent resources")
+	logrus.Infof("[Agent] Successfully created all inspection agent resources")
 	return nil
 }
 
 func ApplyNamespace(clientset *kubernetes.Clientset) error {
-	logrus.Info("Applying namespace configuration")
+	logrus.Infof("[Agent] Applying namespace configuration")
 
 	yamlFile, err := os.ReadFile(common.AgentYamlPath + "namespace.yaml")
 	if err != nil {
@@ -113,12 +113,12 @@ func ApplyNamespace(clientset *kubernetes.Clientset) error {
 		return err
 	}
 
-	logrus.Info("Namespace configuration applied successfully")
+	logrus.Infof("[Agent] Namespace configuration applied successfully")
 	return nil
 }
 
 func ApplyServiceAccount(clientset *kubernetes.Clientset) error {
-	logrus.Info("Applying service account configuration")
+	logrus.Infof("[Agent] Applying service account configuration")
 
 	yamlFile, err := os.ReadFile(common.AgentYamlPath + "serviceaccount.yaml")
 	if err != nil {
@@ -137,12 +137,12 @@ func ApplyServiceAccount(clientset *kubernetes.Clientset) error {
 		return err
 	}
 
-	logrus.Info("Service account configuration applied successfully")
+	logrus.Infof("[Agent] Service account configuration applied successfully")
 	return nil
 }
 
 func ApplyClusterRoleBinding(clientset *kubernetes.Clientset) error {
-	logrus.Info("Applying cluster role binding configuration")
+	logrus.Infof("[Agent] Applying cluster role binding configuration")
 
 	yamlFile, err := os.ReadFile(common.AgentYamlPath + "clusterrolebinding.yaml")
 	if err != nil {
@@ -161,12 +161,12 @@ func ApplyClusterRoleBinding(clientset *kubernetes.Clientset) error {
 		return err
 	}
 
-	logrus.Info("Cluster role binding configuration applied successfully")
+	logrus.Infof("[Agent] Cluster role binding configuration applied successfully")
 	return nil
 }
 
 func ApplyConfigMap(clientset *kubernetes.Clientset) error {
-	logrus.Info("Applying config map configuration")
+	logrus.Infof("[Agent] Applying config map configuration")
 
 	yamlFile, err := os.ReadFile(common.AgentYamlPath + "configmap.yaml")
 	if err != nil {
@@ -185,12 +185,12 @@ func ApplyConfigMap(clientset *kubernetes.Clientset) error {
 		return err
 	}
 
-	logrus.Info("Config map configuration applied successfully")
+	logrus.Infof("[Agent] Config map configuration applied successfully")
 	return nil
 }
 
 func ApplyDaemonSet(clientset *kubernetes.Clientset) error {
-	logrus.Info("Applying daemon set configuration")
+	logrus.Infof("[Agent] Applying daemon set configuration")
 
 	provider, err := detector.DetectProvider(context.TODO(), clientset)
 	if err != nil {
@@ -242,7 +242,7 @@ func ApplyDaemonSet(clientset *kubernetes.Clientset) error {
 		return err
 	}
 
-	logrus.Info("Daemon set configuration applied successfully")
+	logrus.Infof("[Agent] Daemon set configuration applied successfully")
 	return nil
 }
 

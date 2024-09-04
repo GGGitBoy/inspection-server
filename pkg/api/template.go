@@ -18,7 +18,7 @@ func GetTemplate() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
 		templateID := vars["id"]
-		logrus.Infof("Received request to get template with ID: %s", templateID)
+		logrus.Infof("[API] Received request to get template with ID: %s", templateID)
 
 		template, err := db.GetTemplate(templateID)
 		if err != nil {
@@ -39,14 +39,14 @@ func GetTemplate() http.Handler {
 			logrus.Errorf("Failed to write response for template ID %s: %v", templateID, err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 		} else {
-			logrus.Infof("Successfully retrieved and sent template with ID: %s", templateID)
+			logrus.Infof("[API] Successfully retrieved and sent template with ID: %s", templateID)
 		}
 	})
 }
 
 func ListTemplate() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		logrus.Infof("Received request to list all templates")
+		logrus.Infof("[API] Received request to list all templates")
 
 		templates, err := db.ListTemplate()
 		if err != nil {
@@ -67,14 +67,14 @@ func ListTemplate() http.Handler {
 			logrus.Errorf("Failed to write response for template list: %v", err)
 			common.HandleError(rw, http.StatusInternalServerError, err)
 		} else {
-			logrus.Infof("Successfully retrieved and sent template list")
+			logrus.Infof("[API] Successfully retrieved and sent template list")
 		}
 	})
 }
 
 func CreateTemplate() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		logrus.Infof("Received request to create a new template")
+		logrus.Infof("[API] Received request to create a new template")
 
 		template := apis.NewTemplate()
 		body, err := io.ReadAll(req.Body)
@@ -114,13 +114,13 @@ func CreateTemplate() http.Handler {
 		}
 
 		rw.Write([]byte("创建完成"))
-		logrus.Infof("Successfully created template with ID: %s", template.ID)
+		logrus.Infof("[API] Successfully created template with ID: %s", template.ID)
 	})
 }
 
 func UpdateTemplate() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		logrus.Infof("Received request to update template")
+		logrus.Infof("[API] Received request to update template")
 
 		template := apis.NewTemplate()
 		body, err := io.ReadAll(req.Body)
@@ -165,7 +165,7 @@ func UpdateTemplate() http.Handler {
 		}
 
 		rw.Write([]byte("更新完成"))
-		logrus.Infof("Successfully updated template with ID: %s", template.ID)
+		logrus.Infof("[API] Successfully updated template with ID: %s", template.ID)
 	})
 }
 
@@ -173,7 +173,7 @@ func DeleteTemplate() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
 		templateID := vars["id"]
-		logrus.Infof("Received request to delete template with ID: %s", templateID)
+		logrus.Infof("[API] Received request to delete template with ID: %s", templateID)
 
 		if templateID == "Default" {
 			logrus.Errorf("Failed to delete template %s", templateID)
@@ -204,13 +204,13 @@ func DeleteTemplate() http.Handler {
 		}
 
 		rw.Write([]byte("删除完成"))
-		logrus.Infof("Successfully deleted template with ID: %s", templateID)
+		logrus.Infof("[API] Successfully deleted template with ID: %s", templateID)
 	})
 }
 
 func RefreshDefaultTemplate() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		logrus.Info("Received request to refresh template with Default")
+		logrus.Infof("[API] Received request to refresh template with Default")
 
 		err := template.Register()
 		if err != nil {

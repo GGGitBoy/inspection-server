@@ -35,8 +35,8 @@ type Response struct {
 	Msg  string `json:"msg"`
 }
 
-func Webhook(webhookURL, secret, text string) error {
-	logrus.Infof("Start webhook send...")
+func Webhook(webhookURL, secret, text, taskName string) error {
+	logrus.Infof("[%s] Start webhook send...", taskName)
 	timestamp := time.Now().Unix()
 	sign, err := GenSign(secret, timestamp)
 	if err != nil {
@@ -91,7 +91,7 @@ func Webhook(webhookURL, secret, text string) error {
 		return fmt.Errorf("Failed to send message, code: %d msg: %s \n", response.Code, response.Msg)
 	}
 
-	logrus.Infof("Message sent successfully!")
+	logrus.Infof("[%s] Message sent successfully!", taskName)
 	return nil
 }
 
@@ -109,8 +109,8 @@ func GenSign(secret string, timestamp int64) (string, error) {
 	return signature, nil
 }
 
-func Notify(appID, appSecret, fileName, filePath, message string) error {
-	logrus.Infof("Start notify send...")
+func Notify(appID, appSecret, fileName, filePath, message, taskName string) error {
+	logrus.Infof("[%s] Start notify send...", taskName)
 	// 创建 Client
 	client := lark.NewClient(appID, appSecret, lark.WithEnableTokenCache(false))
 
@@ -233,7 +233,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 			return fmt.Errorf("server error sending text message: Code=%d, Msg=%s, RequestID=%s", createMessageResp.Code, createMessageResp.Msg, createMessageResp.RequestId())
 		}
 
-		logrus.Infof("Text message sent successfully to chat %s", *i.ChatId)
+		logrus.Infof("[%s] Text message sent successfully to chat %s", taskName, *i.ChatId)
 
 		// 发送文件消息
 		createFileMessageReq := larkim.NewCreateMessageReqBuilder().
@@ -256,7 +256,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 			return fmt.Errorf("server error sending file message: Code=%d, Msg=%s, RequestID=%s", createFileMessageResp.Code, createFileMessageResp.Msg, createFileMessageResp.RequestId())
 		}
 
-		logrus.Infof("File message sent successfully to chat %s", *i.ChatId)
+		logrus.Infof("[%s] File message sent successfully to chat %s", taskName, *i.ChatId)
 	}
 
 	return nil

@@ -36,7 +36,7 @@ func CreateReport(report *apis.Report) error {
 		return fmt.Errorf("Error committing transaction: %v\n", err)
 	}
 
-	logrus.Infof("Report created successfully with ID: %s", report.ID)
+	logrus.Infof("[DB] Report created successfully with ID: %s", report.ID)
 	return nil
 }
 
@@ -67,7 +67,7 @@ func GetReport(reportID string) (*apis.Report, error) {
 		Kubernetes: dataKubernetes,
 	}
 
-	logrus.Infof("Report retrieved successfully with ID: %s", report.ID)
+	logrus.Infof("[DB] Report get successfully with ID: %s", report.ID)
 	return report, nil
 }
 
@@ -84,9 +84,9 @@ func DeleteReport(reportID string) error {
 	}
 
 	if rowsAffected == 0 {
-		logrus.Infof("No report found to delete with ID: %s", reportID)
+		logrus.Infof("[DB] No report found to delete with ID: %s", reportID)
 	} else {
-		logrus.Infof("Report deleted successfully with ID: %s", reportID)
+		logrus.Infof("[DB] Report deleted successfully with ID: %s", reportID)
 	}
 
 	return nil
