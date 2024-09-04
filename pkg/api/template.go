@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
+	"inspection-server/pkg/agent"
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
 	"inspection-server/pkg/db"
@@ -215,6 +216,13 @@ func RefreshDefaultTemplate() http.Handler {
 		if err != nil {
 			logrus.Errorf("Failed to register template: %v", err)
 			common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("Failed to register template: %v\n", err))
+			return
+		}
+
+		err = agent.Register()
+		if err != nil {
+			logrus.Errorf("Failed to register agent: %v", err)
+			common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("Failed to register agent: %v\n", err))
 			return
 		}
 

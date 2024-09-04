@@ -187,7 +187,7 @@ func DeleteTask() http.Handler {
 
 					report, err := db.GetReport(t.ReportID)
 					if err != nil {
-						logrus.Errorf("Failed to get report with ID %s: %v", report.ID, err)
+						logrus.Errorf("Failed to get report with ID %s: %v", t.ReportID, err)
 						common.HandleError(rw, http.StatusInternalServerError, err)
 						return
 					}
@@ -195,7 +195,7 @@ func DeleteTask() http.Handler {
 					filePath := filepath.Join(common.PrintPDFPath, common.GetReportFileName(report.Global.ReportTime))
 					err = common.DeleteFile(filePath)
 					if err != nil {
-						logrus.Errorf("Failed to delete report pdf file %s: %v", report.ID, err)
+						logrus.Errorf("Failed to delete report pdf file %s: %v", t.ReportID, err)
 						common.HandleError(rw, http.StatusInternalServerError, err)
 						return
 					}
@@ -222,7 +222,7 @@ func DeleteTask() http.Handler {
 				common.HandleError(rw, http.StatusInternalServerError, err)
 				return
 			}
-		} else if task.Mode == "计划任务" {
+		} else if task.Mode == "计划任务" || (task.Mode == "周期任务" && task.TaskID != "") {
 			if task.State == "巡检中" {
 				logrus.Warnf("Task deletion failed: Task with ID %s is currently in progress", taskID)
 				common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("巡检中的计划不能删除"))
