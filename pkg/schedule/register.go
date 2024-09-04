@@ -95,18 +95,18 @@ func RemoveSchedule(task *apis.Task) error {
 func GetLoc() *time.Location {
 	loc, err := time.LoadLocation("Asia/Shanghai")
 	if err != nil {
-		logrus.Fatalf("Failed to load location: %v", err)
+		logrus.Errorf("Failed to load location: %v", err)
 	}
 
 	return loc
 }
 
 func ExecuteTask(task *apis.Task) {
-	logrus.Infof("Executing task %s: %s", task.ID, task.Name)
+	logrus.Infof("[%s] Executing task %s", task.Name, task.ID)
 
 	err := core.Inspection(task)
 	if err != nil {
-		logrus.Errorf("Inspection failed for task %s: %v", task.ID, err)
+		logrus.Errorf("[%s] Inspection failed for task %s: %v", task.Name, task.ID, err)
 		var errMessage strings.Builder
 		errMessage.WriteString(fmt.Sprintf("巡检失败: %v\n", err))
 		task.EndTime = time.Now().Format("2006-01-02 15:04:05")
@@ -114,12 +114,12 @@ func ExecuteTask(task *apis.Task) {
 		task.ErrMessage = errMessage.String()
 		updateErr := db.UpdateTask(task)
 		if updateErr != nil {
-			logrus.Errorf("Failed to update task %s with error message: %v", task.ID, updateErr)
+			logrus.Errorf("[%s] Failed to update task %s with error message: %v", task.Name, task.ID, updateErr)
 		}
 	}
 
 	removeErr := RemoveSchedule(task)
 	if removeErr != nil {
-		logrus.Errorf("Failed to remove schedule for task %s: %v", task.ID, removeErr)
+		logrus.Errorf("[%s] Failed to remove schedule for task %s: %v", task.Name, task.ID, removeErr)
 	}
 }

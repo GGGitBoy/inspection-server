@@ -66,7 +66,6 @@ func Register() error {
 			log.Printf("Error executing table creation SQL: %v\nSQL: %s", err, table)
 			return err
 		}
-		log.Printf("Table created or already exists: SQL: %s", table)
 	}
 
 	return nil

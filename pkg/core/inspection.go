@@ -15,7 +15,7 @@ import (
 
 func Inspection(task *apis.Task) error {
 	task.State = "巡检中"
-	logrus.Infof("Starting inspection for task ID: %s", task.ID)
+	logrus.Infof("[%s] Starting inspection for task ID: %s", task.Name, task.ID)
 
 	err := db.UpdateTask(task)
 	if err != nil {
@@ -55,7 +55,7 @@ func Inspection(task *apis.Task) error {
 
 		if ok && k.Enable {
 			sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 巡检警告：", k.ClusterName))
-			logrus.Infof("Processing inspections for cluster: %s", k.ClusterName)
+			logrus.Infof("[%s] Processing inspections for cluster: %s", task.Name, k.ClusterName)
 
 			healthCheck, coreInspectionArray, err := GetHealthCheck(client, k.ClusterName)
 			if err != nil {
@@ -110,6 +110,8 @@ func Inspection(task *apis.Task) error {
 			clusterResource.Workloads = ResourceWorkloadArray
 		} else if !ok && k.Enable {
 			coreInspections = append(coreInspections, apis.NewInspection(fmt.Sprintf("cluster %s is not ready", k.ClusterID), fmt.Sprintf("can not get the %s client", k.ClusterID), 3))
+			nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("cluster %s is not ready", k.ClusterID), fmt.Sprintf("can not get the %s client", k.ClusterID), 3))
+			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("cluster %s is not ready", k.ClusterID), fmt.Sprintf("can not get the %s client", k.ClusterID), 3))
 		}
 
 		if allGrafanaInspections[k.ClusterName] != nil {
@@ -237,6 +239,6 @@ func Inspection(task *apis.Task) error {
 		return fmt.Errorf("Failed to update task state to '巡检完成' for task ID %s: %v\n", task.ID, err)
 	}
 
-	logrus.Infof("Inspection completed for task ID: %s", task.ID)
+	logrus.Infof("[%s] Inspection completed for task ID: %s", task.Name, task.ID)
 	return nil
 }

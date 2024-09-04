@@ -210,8 +210,6 @@ func GetAlerting() (*Alerting, error) {
 		return nil, err
 	}
 
-	log.Printf("Received alerting data: %s", string(body))
-
 	alerting := NewAlerting()
 	err = json.Unmarshal(body, alerting)
 	if err != nil {

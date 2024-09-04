@@ -169,7 +169,7 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig) ([]*apis.Node
 					commands = append(commands, c.Description+": "+c.Command)
 				}
 
-				log.Printf("Commands to execute on node %s: %v", pod.Spec.NodeName, commands)
+				logrus.Debugf("Commands to execute on node %s: %v", pod.Spec.NodeName, commands)
 				command := "/opt/inspection/inspection.sh"
 				stdout, stderr, err := ExecToPodThroughAPI(client.Clientset, client.Config, command, commands, pod.Namespace, pod.Name, "inspection-agent-container")
 				if err != nil {

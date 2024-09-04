@@ -36,7 +36,7 @@ type Response struct {
 }
 
 func Webhook(webhookURL, secret, text string) error {
-	fmt.Println("Start webhook send...")
+	logrus.Infof("Start webhook send...")
 	timestamp := time.Now().Unix()
 	sign, err := GenSign(secret, timestamp)
 	if err != nil {
@@ -91,7 +91,7 @@ func Webhook(webhookURL, secret, text string) error {
 		return fmt.Errorf("Failed to send message, code: %d msg: %s \n", response.Code, response.Msg)
 	}
 
-	fmt.Println("Message sent successfully!")
+	logrus.Infof("Message sent successfully!")
 	return nil
 }
 
@@ -110,7 +110,7 @@ func GenSign(secret string, timestamp int64) (string, error) {
 }
 
 func Notify(appID, appSecret, fileName, filePath, message string) error {
-	fmt.Println("Start notify send...")
+	logrus.Infof("Start notify send...")
 	// 创建 Client
 	client := lark.NewClient(appID, appSecret, lark.WithEnableTokenCache(false))
 
@@ -208,8 +208,7 @@ func Notify(appID, appSecret, fileName, filePath, message string) error {
 	content.Text = message
 	data, err := json.Marshal(content)
 	if err != nil {
-		fmt.Printf("Error marshaling Content data: %v", err)
-		return err
+		return fmt.Errorf("Error marshaling Content data: %v\n", err)
 	}
 
 	for _, i := range listChatResp.Data.Items {

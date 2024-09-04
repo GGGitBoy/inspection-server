@@ -65,8 +65,7 @@ func DeleteFile(path string) error {
 	if FileExists(path) {
 		err := os.Remove(path)
 		if err != nil {
-			fmt.Printf("Failed to delete file path %s: %v\n", path, err)
-			return err
+			return fmt.Errorf("Failed to delete file path %s: %v\n", path, err)
 		}
 
 		log.Printf("Successfully delete file at path: %s", path)

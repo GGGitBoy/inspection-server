@@ -42,14 +42,12 @@ func FullScreenshot(print *Print) error {
 	}
 	u, err := launcher.New().Bin(path).NoSandbox(true).Launch()
 	if err != nil {
-		log.Fatalf("Failed to get launch: %v", err)
 		return fmt.Errorf("Failed to get launch: %v\n", err)
 	}
 
 	browser := rod.New().ControlURL(u)
 	browser.Connect()
 	if err != nil {
-		log.Fatalf("Failed to connect: %v", err)
 		return fmt.Errorf("Failed to connect: %v\n", err)
 	}
 	defer browser.Close()
@@ -57,14 +55,12 @@ func FullScreenshot(print *Print) error {
 	log.Println("Starting page load")
 	page, err := browser.Page(proto.TargetCreateTarget{URL: print.URL})
 	if err != nil {
-		log.Fatalf("Failed to get page: %v", err)
 		return fmt.Errorf("Failed to get page: %v\n", err)
 	}
 
 	log.Println("Starting wait load")
 	err = page.Timeout(15 * time.Minute).WaitLoad()
 	if err != nil {
-		log.Fatalf("Failed to wait load: %v", err)
 		return fmt.Errorf("Failed to wait load: %v\n", err)
 	}
 
@@ -84,7 +80,6 @@ func FullScreenshot(print *Print) error {
 		}, 2000);
 	}`)
 	if err != nil {
-		log.Fatalf("Failed page scroll: %v", err)
 		return fmt.Errorf("Failed page scroll: %v\n", err)
 	}
 
@@ -104,7 +99,6 @@ func FullScreenshot(print *Print) error {
 		height: document.body.scrollHeight,
 	})`)
 	if err != nil {
-		log.Fatalf("Failed get page width, height: %v", err)
 		return fmt.Errorf("Failed get page width, height: %v\n", err)
 	}
 
@@ -114,20 +108,17 @@ func FullScreenshot(print *Print) error {
 
 	screenshot, err := page.Screenshot(false, nil)
 	if err != nil {
-		log.Fatalf("Failed to capture screenshot: %v", err)
 		return fmt.Errorf("Failed to capture screenshot: %v\n", err)
 	}
 	log.Println("Screenshot captured successfully")
 
 	err = common.WriteFile(common.PrintShotPath, screenshot)
 	if err != nil {
-		log.Fatalf("Failed to save screenshot: %v", err)
 		return fmt.Errorf("Failed to save screenshot: %v\n", err)
 	}
 
 	err = ToPrintPDF(print)
 	if err != nil {
-		log.Fatalf("Failed to generate PDF: %v", err)
 		return fmt.Errorf("Failed to generate PDF: %v\n", err)
 	}
 
@@ -137,15 +128,13 @@ func FullScreenshot(print *Print) error {
 func ToPrintPDF(print *Print) error {
 	imgFile, err := os.Open(common.PrintShotPath)
 	if err != nil {
-		log.Fatalf("Failed to open screenshot file: %v", err)
-		return err
+		return fmt.Errorf("Failed to open screenshot file: %v\n", err)
 	}
 	defer imgFile.Close()
 
 	img, _, err := image.Decode(imgFile)
 	if err != nil {
-		log.Fatalf("Failed to decode image: %v", err)
-		return err
+		return fmt.Errorf("Failed to decode image: %v\n", err)
 	}
 
 	imgWidth := img.Bounds().Dx()
@@ -165,14 +154,12 @@ func ToPrintPDF(print *Print) error {
 
 	err = pdf.Image(common.PrintShotPath, 0, 0, rect)
 	if err != nil {
-		log.Fatalf("Failed to add image to PDF: %v", err)
-		return err
+		return fmt.Errorf("Failed to add image to PDF: %v\n", err)
 	}
 
 	err = pdf.WritePdf(common.PrintPDFPath + common.GetReportFileName(print.ReportTime))
 	if err != nil {
-		log.Fatalf("Failed to save PDF: %v", err)
-		return err
+		return fmt.Errorf("Failed to save PDF: %v\n", err)
 	}
 
 	log.Println("PDF generated successfully")

@@ -193,12 +193,12 @@ func GetClient(kubeconfigPath string) (*apis.Client, error) {
 func IsClusterReady(cluster unstructured.Unstructured) bool {
 	conditions, found, err := unstructured.NestedSlice(cluster.Object, "status", "conditions")
 	if err != nil {
-		fmt.Printf("Error getting conditions: %v\n", err)
+		logrus.Errorf("Error getting conditions: %v\n", err)
 		return false
 	}
 
 	if !found {
-		fmt.Println("No conditions found in the object.")
+		logrus.Errorf("No conditions found in the object.")
 		return false
 	}
 

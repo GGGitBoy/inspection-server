@@ -165,31 +165,25 @@ func DeleteTask() http.Handler {
 
 			for _, t := range tasks {
 				if task.ID == t.TaskID {
-					if t.State == "巡检中" {
-						logrus.Warnf("Task deletion failed: Task with ID %s is currently in progress", t.ID)
-						common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("巡检中的计划不能删除"))
-						return
-					}
-
 					err = schedule.RemoveSchedule(t)
 					if err != nil {
 						logrus.Errorf("Failed to remove schedule for task with ID %s: %v", t.ID, err)
 						common.HandleError(rw, http.StatusInternalServerError, err)
-						return
+						continue
 					}
 
 					err = db.DeleteTask(t.ID)
 					if err != nil {
 						logrus.Errorf("Failed to delete task with ID %s: %v", t.ID, err)
 						common.HandleError(rw, http.StatusInternalServerError, err)
-						return
+						continue
 					}
 
 					report, err := db.GetReport(t.ReportID)
 					if err != nil {
 						logrus.Errorf("Failed to get report with ID %s: %v", t.ReportID, err)
 						common.HandleError(rw, http.StatusInternalServerError, err)
-						return
+						continue
 					}
 
 					filePath := filepath.Join(common.PrintPDFPath, common.GetReportFileName(report.Global.ReportTime))
@@ -197,14 +191,14 @@ func DeleteTask() http.Handler {
 					if err != nil {
 						logrus.Errorf("Failed to delete report pdf file %s: %v", t.ReportID, err)
 						common.HandleError(rw, http.StatusInternalServerError, err)
-						return
+						continue
 					}
 
 					err = db.DeleteReport(t.ReportID)
 					if err != nil {
 						logrus.Errorf("Failed to delete report for task ID %s: %v", t.ID, err)
 						common.HandleError(rw, http.StatusInternalServerError, err)
-						return
+						continue
 					}
 				}
 			}
@@ -245,7 +239,7 @@ func DeleteTask() http.Handler {
 
 			report, err := db.GetReport(task.ReportID)
 			if err != nil {
-				logrus.Errorf("Failed to get report with ID %s: %v", report.ID, err)
+				logrus.Errorf("Failed to get report with ID %s: %v", task.ReportID, err)
 				common.HandleError(rw, http.StatusInternalServerError, err)
 				return
 			}
@@ -253,7 +247,7 @@ func DeleteTask() http.Handler {
 			filePath := filepath.Join(common.PrintPDFPath, common.GetReportFileName(report.Global.ReportTime))
 			err = common.DeleteFile(filePath)
 			if err != nil {
-				logrus.Errorf("Failed to delete report pdf file %s: %v", report.ID, err)
+				logrus.Errorf("Failed to delete report pdf file %s: %v", task.ReportID, err)
 				common.HandleError(rw, http.StatusInternalServerError, err)
 				return
 			}
