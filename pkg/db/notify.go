@@ -1,8 +1,9 @@
 package db
 
 import (
+	"fmt"
+	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/apis"
-	"log"
 )
 
 // GetNotify retrieves a notification by its ID from the database.
@@ -13,8 +14,7 @@ func GetNotify(notifyID string) (*apis.Notify, error) {
 	notify := apis.NewNotify()
 	err := row.Scan(&id, &name, &appID, &appSecret, &webhookURL, &secret)
 	if err != nil {
-		log.Printf("Error scanning row: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("Error scanning row: %v\n", err)
 	}
 
 	notify = &apis.Notify{
@@ -26,6 +26,7 @@ func GetNotify(notifyID string) (*apis.Notify, error) {
 		Secret:     secret,
 	}
 
+	logrus.Infof("Notify retrieved successfully with ID: %s", notify.ID)
 	return notify, nil
 }
 
@@ -33,8 +34,7 @@ func GetNotify(notifyID string) (*apis.Notify, error) {
 func ListNotify() ([]*apis.Notify, error) {
 	rows, err := DB.Query("SELECT id, name, app_id, app_secret, webhook_url, secret FROM notify")
 	if err != nil {
-		log.Printf("Error querying database: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("Error querying database: %v\n", err)
 	}
 	defer rows.Close()
 
@@ -43,8 +43,7 @@ func ListNotify() ([]*apis.Notify, error) {
 		var id, name, appID, appSecret, webhookURL, secret string
 		err = rows.Scan(&id, &name, &appID, &appSecret, &webhookURL, &secret)
 		if err != nil {
-			log.Printf("Error scanning row: %v", err)
-			return nil, err
+			return nil, fmt.Errorf("Error scanning row: %v\n", err)
 		}
 
 		notifys = append(notifys, &apis.Notify{
@@ -56,10 +55,10 @@ func ListNotify() ([]*apis.Notify, error) {
 	}
 
 	if err = rows.Err(); err != nil {
-		log.Printf("Error iterating over rows: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("Error iterating over rows: %v\n", err)
 	}
 
+	logrus.Infof("Notifys retrieved successfully, total count: %d", len(notifys))
 	return notifys, nil
 }
 
@@ -67,29 +66,27 @@ func ListNotify() ([]*apis.Notify, error) {
 func CreateNotify(notify *apis.Notify) error {
 	tx, err := DB.Begin()
 	if err != nil {
-		log.Printf("Error starting transaction: %v", err)
-		return err
+		return fmt.Errorf("Error starting transaction: %v\n", err)
 	}
-	defer tx.Rollback() // Ensure transaction is rolled back if not committed
 
 	stmt, err := tx.Prepare("INSERT INTO notify(id, name, app_id, app_secret, webhook_url, secret) VALUES(?, ?, ?, ?, ?, ?)")
 	if err != nil {
-		log.Printf("Error preparing statement: %v", err)
-		return err
+		tx.Rollback()
+		return fmt.Errorf("Error preparing statement: %v\n", err)
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(notify.ID, notify.Name, notify.AppID, notify.AppSecret, notify.WebhookURL, notify.Secret)
 	if err != nil {
-		log.Printf("Error executing statement: %v", err)
-		return err
+		tx.Rollback()
+		return fmt.Errorf("Error executing statement: %v\n", err)
 	}
 
 	if err = tx.Commit(); err != nil {
-		log.Printf("Error committing transaction: %v", err)
-		return err
+		return fmt.Errorf("Error committing transaction: %v\n", err)
 	}
 
+	logrus.Infof("Notify created successfully with ID: %s", notify.ID)
 	return nil
 }
 
@@ -97,19 +94,29 @@ func CreateNotify(notify *apis.Notify) error {
 func UpdateNotify(notify *apis.Notify) error {
 	_, err := DB.Exec("UPDATE notify SET name = ?, app_id = ?, app_secret = ?, webhook_url = ?, secret = ? WHERE id = ?", notify.Name, notify.AppID, notify.AppSecret, notify.WebhookURL, notify.Secret, notify.ID)
 	if err != nil {
-		log.Printf("Error updating notification with ID %s: %v", notify.ID, err)
-		return err
+		return fmt.Errorf("Error updating notification with ID %s: %v\n", notify.ID, err)
 	}
 
+	logrus.Infof("Notify updated successfully with ID: %s", notify.ID)
 	return nil
 }
 
 // DeleteNotify removes a notification from the database by its ID.
-func DeleteNotify(notifyID string) error {
-	_, err := DB.Exec("DELETE FROM notify WHERE id = ?", notifyID)
+func DeleteNotify(ID string) error {
+	result, err := DB.Exec("DELETE FROM notify WHERE id = ?", ID)
 	if err != nil {
-		log.Printf("Error deleting notification with ID %s: %v", notifyID, err)
-		return err
+		return fmt.Errorf("Error deleting notification with ID %s: %v\n", ID, err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Error getting rows affected: %v\n", err)
+	}
+
+	if rowsAffected == 0 {
+		logrus.Infof("No notify found to delete with ID: %s", ID)
+	} else {
+		logrus.Infof("Notify deleted successfully with ID: %s", ID)
 	}
 
 	return nil

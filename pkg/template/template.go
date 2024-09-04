@@ -5,17 +5,17 @@ import (
 	"fmt"
 	detector "github.com/rancher/kubernetes-provider-detector"
 	detectorProviders "github.com/rancher/kubernetes-provider-detector/providers"
+	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/apis"
 	"inspection-server/pkg/common"
 	"inspection-server/pkg/db"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"log"
 )
 
 func Register() error {
-	log.Println("Starting template registration process...")
+	logrus.Infof("Starting template registration process...")
 
 	localKubernetesClient, err := common.GetKubernetesClient(common.LocalCluster)
 	if err != nil {
@@ -32,17 +32,15 @@ func Register() error {
 
 	for _, c := range clusters.Items {
 		clusterName := c.GetName()
-		log.Printf("Processing cluster: %s\n", clusterName)
+		logrus.Infof("Processing cluster: %s\n", clusterName)
 
 		spec, _, err := unstructured.NestedMap(c.UnstructuredContent(), "spec")
 		if err != nil {
-			log.Printf("Error getting spec for cluster %s: %v\n", clusterName, err)
 			return fmt.Errorf("error getting spec for cluster %s: %w", clusterName, err)
 		}
 
 		clusterDisplayName, ok := spec["displayName"].(string)
 		if !ok {
-			log.Printf("Invalid displayName format for cluster %s\n", clusterName)
 			return fmt.Errorf("invalid displayName format for cluster %s", clusterName)
 		}
 
@@ -57,20 +55,18 @@ func Register() error {
 
 		kubernetesClient, err := common.GetKubernetesClient(clusterName)
 		if err != nil {
-			log.Printf("Failed to get Kubernetes client for cluster %s: %v\n", clusterName, err)
-			return err
+			return fmt.Errorf("Failed to get Kubernetes client for cluster %s: %v\n", clusterName, err)
 		}
 
 		provider, err := detector.DetectProvider(context.TODO(), kubernetesClient.Clientset)
 		if err != nil {
-			log.Printf("Failed to detect provider for cluster %s: %v\n", clusterName, err)
-			return err
+			return fmt.Errorf("Failed to detect provider for cluster %s: %v\n", clusterName, err)
 		}
 
 		workloadConfig := apis.NewWorkloadConfig()
 		workloadConfig = getWorkloadConfigByProvider(provider)
 		if c.GetName() == common.LocalCluster {
-			log.Printf("%s cluster add rancher check\n", c.GetName())
+			logrus.Infof("%s cluster add rancher check\n", c.GetName())
 			workloadConfig.Deployment = append(workloadConfig.Deployment, &apis.WorkloadDetailConfig{
 				Name:      "rancher",
 				Namespace: "cattle-system",
@@ -81,15 +77,13 @@ func Register() error {
 
 		nodeList, err := kubernetesClient.Clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			log.Printf("Failed to list nodes for cluster %s: %v\n", clusterName, err)
-			return err
+			return fmt.Errorf("Failed to list nodes for cluster %s: %v\n", clusterName, err)
 		}
 
 		nodeConfigs := apis.NewNodeConfigs()
 		nodeConfigs, err = generateNodeConfigs(nodeList, provider)
 		if err != nil {
-			log.Printf("Failed to generate node configs for cluster %s: %v\n", clusterName, err)
-			return err
+			return fmt.Errorf("Failed to generate node configs for cluster %s: %v\n", clusterName, err)
 		}
 
 		clusterCoreConfig := apis.NewClusterCoreConfig()
@@ -122,7 +116,7 @@ func Register() error {
 
 	template, err = db.GetTemplate("Default")
 	if err != nil {
-		log.Println("Creating template in the database...")
+		logrus.Infof("Creating template in the database...")
 		t := &apis.Template{
 			ID:               "Default",
 			Name:             "Default",
@@ -130,19 +124,17 @@ func Register() error {
 		}
 
 		if err := db.CreateTemplate(t); err != nil {
-			log.Printf("Failed to create template: %v\n", err)
 			return fmt.Errorf("failed to create template: %w", err)
 		}
 	} else {
-		log.Println("Updating template in the database...")
+		logrus.Infof("Updating template in the database...")
 		template.KubernetesConfig = kubernetesConfig
 		if err := db.UpdateTemplate(template); err != nil {
-			log.Printf("Failed to update template: %v\n", err)
 			return fmt.Errorf("failed to update template: %w", err)
 		}
 	}
 
-	log.Println("Template registration completed successfully.")
+	logrus.Infof("Template registration completed successfully.")
 	return nil
 }
 

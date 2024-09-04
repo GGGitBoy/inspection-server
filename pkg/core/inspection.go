@@ -44,126 +44,128 @@ func Inspection(task *apis.Task) error {
 	level := 0
 	var sendMessageDetail []string
 	for _, k := range template.KubernetesConfig {
-		client, ok := clients[k.ClusterID]
+		if k.Enable {
+			client, ok := clients[k.ClusterID]
 
-		clusterCore := apis.NewClusterCore()
-		clusterNode := apis.NewClusterNode()
-		clusterResource := apis.NewClusterResource()
-		coreInspections := apis.NewInspections()
-		nodeInspections := apis.NewInspections()
-		resourceInspections := apis.NewInspections()
+			clusterCore := apis.NewClusterCore()
+			clusterNode := apis.NewClusterNode()
+			clusterResource := apis.NewClusterResource()
+			coreInspections := apis.NewInspections()
+			nodeInspections := apis.NewInspections()
+			resourceInspections := apis.NewInspections()
 
-		if ok && k.Enable {
-			sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 巡检警告：", k.ClusterName))
-			logrus.Infof("[%s] Processing inspections for cluster: %s", task.Name, k.ClusterName)
+			if ok {
+				sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("集群 %s 巡检警告：", k.ClusterName))
+				logrus.Infof("[%s] Processing inspections for cluster: %s", task.Name, k.ClusterName)
 
-			healthCheck, coreInspectionArray, err := GetHealthCheck(client, k.ClusterName)
-			if err != nil {
-				return fmt.Errorf("Failed to get health check for cluster %s: %v\n", k.ClusterID, err)
-			}
-			coreInspections = append(coreInspections, coreInspectionArray...)
-
-			NodeNodeArray, nodeInspectionArray, err := GetNodes(client, k.ClusterNodeConfig.NodeConfig)
-			if err != nil {
-				return fmt.Errorf("Failed to get nodes for cluster %s: %v\n", k.ClusterID, err)
-			}
-			nodeInspections = append(nodeInspections, nodeInspectionArray...)
-
-			ResourceWorkloadArray, resourceInspectionArray, err := GetWorkloads(client, k.ClusterResourceConfig.WorkloadConfig)
-			if err != nil {
-				return fmt.Errorf("Failed to get workloads for cluster %s: %v\n", k.ClusterID, err)
-			}
-			resourceInspections = append(resourceInspections, resourceInspectionArray...)
-
-			if k.ClusterResourceConfig.NamespaceConfig.Enable {
-				ResourceNamespaceArray, resourceInspectionArray, err := GetNamespaces(client)
+				healthCheck, coreInspectionArray, err := GetHealthCheck(client, k.ClusterName)
 				if err != nil {
-					return fmt.Errorf("Failed to get namespaces for cluster %s: %v\n", k.ClusterID, err)
+					return fmt.Errorf("Failed to get health check for cluster %s: %v\n", k.ClusterID, err)
+				}
+				coreInspections = append(coreInspections, coreInspectionArray...)
+
+				NodeNodeArray, nodeInspectionArray, err := GetNodes(client, k.ClusterNodeConfig.NodeConfig)
+				if err != nil {
+					return fmt.Errorf("Failed to get nodes for cluster %s: %v\n", k.ClusterID, err)
+				}
+				nodeInspections = append(nodeInspections, nodeInspectionArray...)
+
+				ResourceWorkloadArray, resourceInspectionArray, err := GetWorkloads(client, k.ClusterResourceConfig.WorkloadConfig)
+				if err != nil {
+					return fmt.Errorf("Failed to get workloads for cluster %s: %v\n", k.ClusterID, err)
+				}
+				resourceInspections = append(resourceInspections, resourceInspectionArray...)
+
+				if k.ClusterResourceConfig.NamespaceConfig.Enable {
+					ResourceNamespaceArray, resourceInspectionArray, err := GetNamespaces(client)
+					if err != nil {
+						return fmt.Errorf("Failed to get namespaces for cluster %s: %v\n", k.ClusterID, err)
+					}
+
+					clusterResource.Namespace = ResourceNamespaceArray
+					resourceInspections = append(resourceInspections, resourceInspectionArray...)
 				}
 
-				clusterResource.Namespace = ResourceNamespaceArray
-				resourceInspections = append(resourceInspections, resourceInspectionArray...)
-			}
+				if k.ClusterResourceConfig.ServiceConfig.Enable {
+					ResourceServiceArray, resourceInspectionArray, err := GetServices(client)
+					if err != nil {
+						return fmt.Errorf("Failed to get services for cluster %s: %v\n", k.ClusterID, err)
+					}
 
-			if k.ClusterResourceConfig.ServiceConfig.Enable {
-				ResourceServiceArray, resourceInspectionArray, err := GetServices(client)
-				if err != nil {
-					return fmt.Errorf("Failed to get services for cluster %s: %v\n", k.ClusterID, err)
+					clusterResource.Service = ResourceServiceArray
+					resourceInspections = append(resourceInspections, resourceInspectionArray...)
 				}
 
-				clusterResource.Service = ResourceServiceArray
-				resourceInspections = append(resourceInspections, resourceInspectionArray...)
-			}
+				if k.ClusterResourceConfig.IngressConfig.Enable {
+					ResourceIngressArray, resourceInspectionArray, err := GetIngress(client)
+					if err != nil {
+						return fmt.Errorf("Failed to get ingress for cluster %s: %v\n", k.ClusterID, err)
+					}
 
-			if k.ClusterResourceConfig.IngressConfig.Enable {
-				ResourceIngressArray, resourceInspectionArray, err := GetIngress(client)
-				if err != nil {
-					return fmt.Errorf("Failed to get ingress for cluster %s: %v\n", k.ClusterID, err)
+					clusterResource.Ingress = ResourceIngressArray
+					resourceInspections = append(resourceInspections, resourceInspectionArray...)
 				}
 
-				clusterResource.Ingress = ResourceIngressArray
-				resourceInspections = append(resourceInspections, resourceInspectionArray...)
+				clusterCore.HealthCheck = healthCheck
+				clusterNode.Nodes = NodeNodeArray
+				clusterResource.Workloads = ResourceWorkloadArray
+			} else {
+				coreInspections = append(coreInspections, apis.NewInspection(fmt.Sprintf("cluster %s is not ready", k.ClusterID), fmt.Sprintf("can not get the %s client", k.ClusterID), 3))
+				nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("cluster %s is not ready", k.ClusterID), fmt.Sprintf("can not get the %s client", k.ClusterID), 3))
+				resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("cluster %s is not ready", k.ClusterID), fmt.Sprintf("can not get the %s client", k.ClusterID), 3))
 			}
 
-			clusterCore.HealthCheck = healthCheck
-			clusterNode.Nodes = NodeNodeArray
-			clusterResource.Workloads = ResourceWorkloadArray
-		} else if !ok && k.Enable {
-			coreInspections = append(coreInspections, apis.NewInspection(fmt.Sprintf("cluster %s is not ready", k.ClusterID), fmt.Sprintf("can not get the %s client", k.ClusterID), 3))
-			nodeInspections = append(nodeInspections, apis.NewInspection(fmt.Sprintf("cluster %s is not ready", k.ClusterID), fmt.Sprintf("can not get the %s client", k.ClusterID), 3))
-			resourceInspections = append(resourceInspections, apis.NewInspection(fmt.Sprintf("cluster %s is not ready", k.ClusterID), fmt.Sprintf("can not get the %s client", k.ClusterID), 3))
+			if allGrafanaInspections[k.ClusterName] != nil {
+				if len(allGrafanaInspections[k.ClusterName].ClusterCoreInspection) > 0 {
+					coreInspections = append(coreInspections, allGrafanaInspections[k.ClusterName].ClusterCoreInspection...)
+				}
+
+				if len(allGrafanaInspections[k.ClusterName].ClusterNodeInspection) > 0 {
+					nodeInspections = append(nodeInspections, allGrafanaInspections[k.ClusterName].ClusterNodeInspection...)
+				}
+
+				if len(allGrafanaInspections[k.ClusterName].ClusterResourceInspection) > 0 {
+					resourceInspections = append(resourceInspections, allGrafanaInspections[k.ClusterName].ClusterResourceInspection...)
+				}
+			}
+
+			clusterCore.Inspections = coreInspections
+			clusterNode.Inspections = nodeInspections
+			clusterResource.Inspections = resourceInspections
+
+			for _, c := range coreInspections {
+				if c.Level > level {
+					level = c.Level
+				}
+				if c.Level >= 2 {
+					sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("%s", c.Title))
+				}
+			}
+			for _, n := range nodeInspections {
+				if n.Level > level {
+					level = n.Level
+				}
+				if n.Level >= 2 {
+					sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("%s", n.Title))
+				}
+			}
+			for _, r := range resourceInspections {
+				if r.Level > level {
+					level = r.Level
+				}
+				if r.Level >= 2 {
+					sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("%s", r.Title))
+				}
+			}
+
+			kubernetes = append(kubernetes, &apis.Kubernetes{
+				ClusterID:       k.ClusterID,
+				ClusterName:     k.ClusterName,
+				ClusterCore:     clusterCore,
+				ClusterNode:     clusterNode,
+				ClusterResource: clusterResource,
+			})
 		}
-
-		if allGrafanaInspections[k.ClusterName] != nil {
-			if len(allGrafanaInspections[k.ClusterName].ClusterCoreInspection) > 0 {
-				coreInspections = append(coreInspections, allGrafanaInspections[k.ClusterName].ClusterCoreInspection...)
-			}
-
-			if len(allGrafanaInspections[k.ClusterName].ClusterNodeInspection) > 0 {
-				nodeInspections = append(nodeInspections, allGrafanaInspections[k.ClusterName].ClusterNodeInspection...)
-			}
-
-			if len(allGrafanaInspections[k.ClusterName].ClusterResourceInspection) > 0 {
-				resourceInspections = append(resourceInspections, allGrafanaInspections[k.ClusterName].ClusterResourceInspection...)
-			}
-		}
-
-		clusterCore.Inspections = coreInspections
-		clusterNode.Inspections = nodeInspections
-		clusterResource.Inspections = resourceInspections
-
-		for _, c := range coreInspections {
-			if c.Level > level {
-				level = c.Level
-			}
-			if c.Level >= 2 {
-				sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("%s", c.Title))
-			}
-		}
-		for _, n := range nodeInspections {
-			if n.Level > level {
-				level = n.Level
-			}
-			if n.Level >= 2 {
-				sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("%s", n.Title))
-			}
-		}
-		for _, r := range resourceInspections {
-			if r.Level > level {
-				level = r.Level
-			}
-			if r.Level >= 2 {
-				sendMessageDetail = append(sendMessageDetail, fmt.Sprintf("%s", r.Title))
-			}
-		}
-
-		kubernetes = append(kubernetes, &apis.Kubernetes{
-			ClusterID:       k.ClusterID,
-			ClusterName:     k.ClusterName,
-			ClusterCore:     clusterCore,
-			ClusterNode:     clusterNode,
-			ClusterResource: clusterResource,
-		})
 	}
 
 	var rating string

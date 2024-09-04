@@ -2,8 +2,9 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/apis"
-	"log"
 )
 
 // GetTemplate retrieves a template from the database by templateID.
@@ -14,15 +15,13 @@ func GetTemplate(templateID string) (*apis.Template, error) {
 	template := apis.NewTemplate()
 	err := row.Scan(&id, &name, &data)
 	if err != nil {
-		log.Printf("Error scanning template row: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("Error scanning template row: %v\n", err)
 	}
 
 	var dataKubernetesConfig []*apis.KubernetesConfig
 	err = json.Unmarshal([]byte(data), &dataKubernetesConfig)
 	if err != nil {
-		log.Printf("Error unmarshalling KubernetesConfig: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("Error unmarshalling KubernetesConfig: %v\n", err)
 	}
 
 	template = &apis.Template{
@@ -31,7 +30,7 @@ func GetTemplate(templateID string) (*apis.Template, error) {
 		KubernetesConfig: dataKubernetesConfig,
 	}
 
-	log.Printf("Template retrieved successfully with ID: %s", template.ID)
+	logrus.Infof("Template retrieved successfully with ID: %s", template.ID)
 	return template, nil
 }
 
@@ -39,8 +38,7 @@ func GetTemplate(templateID string) (*apis.Template, error) {
 func ListTemplate() ([]*apis.Template, error) {
 	rows, err := DB.Query("SELECT id, name, data FROM template")
 	if err != nil {
-		log.Printf("Error executing query: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("Error executing query: %v\n", err)
 	}
 	defer rows.Close()
 
@@ -49,15 +47,13 @@ func ListTemplate() ([]*apis.Template, error) {
 		var id, name, data string
 		err = rows.Scan(&id, &name, &data)
 		if err != nil {
-			log.Printf("Error scanning template row: %v", err)
-			return nil, err
+			return nil, fmt.Errorf("Error scanning template row: %v\n", err)
 		}
 
 		var dataKubernetesConfig []*apis.KubernetesConfig
 		err = json.Unmarshal([]byte(data), &dataKubernetesConfig)
 		if err != nil {
-			log.Printf("Error unmarshalling KubernetesConfig: %v", err)
-			return nil, err
+			return nil, fmt.Errorf("Error unmarshalling KubernetesConfig: %v\n", err)
 		}
 
 		templates = append(templates, &apis.Template{
@@ -68,11 +64,10 @@ func ListTemplate() ([]*apis.Template, error) {
 	}
 
 	if err = rows.Err(); err != nil {
-		log.Printf("Error iterating over template rows: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("Error iterating over template rows: %v\n", err)
 	}
 
-	log.Printf("Templates retrieved successfully, total count: %d", len(templates))
+	logrus.Infof("Templates retrieved successfully, total count: %d", len(templates))
 	return templates, nil
 }
 
@@ -80,37 +75,32 @@ func ListTemplate() ([]*apis.Template, error) {
 func CreateTemplate(template *apis.Template) error {
 	data, err := json.Marshal(template.KubernetesConfig)
 	if err != nil {
-		log.Printf("Error marshalling KubernetesConfig: %v", err)
-		return err
+		return fmt.Errorf("Error marshalling KubernetesConfig: %v\n", err)
 	}
 
 	tx, err := DB.Begin()
 	if err != nil {
-		log.Printf("Error beginning transaction: %v", err)
-		return err
+		return fmt.Errorf("Error beginning transaction: %v\n", err)
 	}
 
 	stmt, err := tx.Prepare("INSERT INTO template(id, name, data) VALUES(?, ?, ?)")
 	if err != nil {
-		log.Printf("Error preparing statement: %v", err)
 		tx.Rollback()
-		return err
+		return fmt.Errorf("Error preparing statement: %v\n", err)
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(template.ID, template.Name, string(data))
 	if err != nil {
-		log.Printf("Error executing statement: %v", err)
 		tx.Rollback()
-		return err
+		return fmt.Errorf("Error executing statement: %v\n", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		log.Printf("Error committing transaction: %v", err)
-		return err
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("Error committing transaction: %v\n", err)
 	}
 
-	log.Printf("Template created successfully with ID: %s", template.ID)
+	logrus.Infof("Template created successfully with ID: %s", template.ID)
 	return nil
 }
 
@@ -118,17 +108,15 @@ func CreateTemplate(template *apis.Template) error {
 func UpdateTemplate(template *apis.Template) error {
 	data, err := json.Marshal(template.KubernetesConfig)
 	if err != nil {
-		log.Printf("Error marshalling KubernetesConfig: %v", err)
-		return err
+		return fmt.Errorf("Error marshalling KubernetesConfig: %v\n", err)
 	}
 
 	_, err = DB.Exec("UPDATE template SET name = ?, data = ? WHERE id = ?", template.Name, string(data), template.ID)
 	if err != nil {
-		log.Printf("Error updating template: %v", err)
-		return err
+		return fmt.Errorf("Error updating template: %v\n", err)
 	}
 
-	log.Printf("Template updated successfully with ID: %s", template.ID)
+	logrus.Infof("Template updated successfully with ID: %s", template.ID)
 	return nil
 }
 
@@ -136,20 +124,18 @@ func UpdateTemplate(template *apis.Template) error {
 func DeleteTemplate(templateID string) error {
 	result, err := DB.Exec("DELETE FROM template WHERE id = ?", templateID)
 	if err != nil {
-		log.Printf("Error executing delete statement: %v", err)
-		return err
+		return fmt.Errorf("Error executing delete statement: %v\n", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Printf("Error getting rows affected: %v", err)
-		return err
+		return fmt.Errorf("Error getting rows affected: %v\n", err)
 	}
 
 	if rowsAffected == 0 {
-		log.Printf("No template found to delete with ID: %s", templateID)
+		logrus.Infof("No template found to delete with ID: %s", templateID)
 	} else {
-		log.Printf("Template deleted successfully with ID: %s", templateID)
+		logrus.Infof("Template deleted successfully with ID: %s", templateID)
 	}
 
 	return nil

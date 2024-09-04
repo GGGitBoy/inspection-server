@@ -2,45 +2,41 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/apis"
-	"log"
 )
 
 // CreateReport inserts a new report into the database.
 func CreateReport(report *apis.Report) error {
 	data, err := json.Marshal(report.Kubernetes)
 	if err != nil {
-		log.Printf("Error marshaling Kubernetes data: %v", err)
-		return err
+		return fmt.Errorf("Error marshaling Kubernetes data: %v\n", err)
 	}
 
 	tx, err := DB.Begin()
 	if err != nil {
-		log.Printf("Error beginning transaction: %v", err)
-		return err
+		return fmt.Errorf("Error beginning transaction: %v\n", err)
 	}
 
 	stmt, err := tx.Prepare("INSERT INTO report(id, name, rating, report_time, data) VALUES(?, ?, ?, ?, ?)")
 	if err != nil {
-		log.Printf("Error preparing statement: %v", err)
-		tx.Rollback() // Rollback transaction on error
-		return err
+		tx.Rollback()
+		return fmt.Errorf("Error preparing statement: %v\n", err)
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(report.ID, report.Global.Name, report.Global.Rating, report.Global.ReportTime, string(data))
 	if err != nil {
-		log.Printf("Error executing statement: %v", err)
-		tx.Rollback() // Rollback transaction on error
-		return err
+		tx.Rollback()
+		return fmt.Errorf("Error executing statement: %v\n", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		log.Printf("Error committing transaction: %v", err)
-		return err
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("Error committing transaction: %v\n", err)
 	}
 
-	log.Printf("Report created successfully with ID: %s", report.ID)
+	logrus.Infof("Report created successfully with ID: %s", report.ID)
 	return nil
 }
 
@@ -52,15 +48,13 @@ func GetReport(reportID string) (*apis.Report, error) {
 	report := apis.NewReport()
 	err := row.Scan(&id, &name, &rating, &reportTime, &data)
 	if err != nil {
-		log.Printf("Error scanning row: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("Error scanning row: %v\n", err)
 	}
 
 	var dataKubernetes []*apis.Kubernetes
 	err = json.Unmarshal([]byte(data), &dataKubernetes)
 	if err != nil {
-		log.Printf("Error unmarshaling Kubernetes data: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("Error unmarshaling Kubernetes data: %v\n", err)
 	}
 
 	report = &apis.Report{
@@ -73,7 +67,7 @@ func GetReport(reportID string) (*apis.Report, error) {
 		Kubernetes: dataKubernetes,
 	}
 
-	log.Printf("Report retrieved successfully with ID: %s", report.ID)
+	logrus.Infof("Report retrieved successfully with ID: %s", report.ID)
 	return report, nil
 }
 
@@ -81,20 +75,18 @@ func GetReport(reportID string) (*apis.Report, error) {
 func DeleteReport(reportID string) error {
 	result, err := DB.Exec("DELETE FROM report WHERE id = ?", reportID)
 	if err != nil {
-		log.Printf("Error executing delete statement: %v", err)
-		return err
+		return fmt.Errorf("Error executing delete statement: %v\n", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Printf("Error getting rows affected: %v", err)
-		return err
+		return fmt.Errorf("Error getting rows affected: %v\n", err)
 	}
 
 	if rowsAffected == 0 {
-		log.Printf("No report found to delete with ID: %s", reportID)
+		logrus.Infof("No report found to delete with ID: %s", reportID)
 	} else {
-		log.Printf("Report deleted successfully with ID: %s", reportID)
+		logrus.Infof("Report deleted successfully with ID: %s", reportID)
 	}
 
 	return nil

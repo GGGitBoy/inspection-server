@@ -5,8 +5,8 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/sirupsen/logrus"
 	"inspection-server/pkg/common"
-	"log"
 	"time"
 )
 
@@ -56,15 +56,13 @@ var (
 func Register() error {
 	DB, err := GetDB()
 	if err != nil {
-		log.Printf("Error getting database connection: %v", err)
-		return err
+		return fmt.Errorf("Error getting database connection: %v\n", err)
 	}
 
 	for _, table := range sqlTables {
 		_, err = DB.Exec(table)
 		if err != nil {
-			log.Printf("Error executing table creation SQL: %v\nSQL: %s", err, table)
-			return err
+			return fmt.Errorf("Error executing table creation  SQL: %s, error: %v\n", err, table)
 		}
 	}
 
@@ -79,29 +77,25 @@ func GetDB() (*sql.DB, error) {
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", common.MySQLUser, common.MySQLPassword, common.MySQLHost, common.MySQLPort, common.MySQLDB)
 		DB, err = sql.Open("mysql", dsn)
 		if err != nil {
-			log.Printf("Error opening MySQL connection: %v, DSN: %s", err, dsn)
-			return nil, err
+			return nil, fmt.Errorf("Error opening MySQL connection: %v, DSN: %s\n", err, dsn)
 		}
-		log.Println("Connected to MySQL database successfully")
+		logrus.Infof("Connected to MySQL database successfully")
 	} else {
 		DB, err = sql.Open("sqlite3", common.SQLiteName)
 		if err != nil {
-			log.Printf("Error opening SQLite connection: %v, DB Name: %s", err, common.SQLiteName)
-			return nil, err
+			return nil, fmt.Errorf("Error opening SQLite connection: %v, DB Name: %s\n", err, common.SQLiteName)
 		}
-		log.Println("Connected to SQLite database successfully")
+		logrus.Infof("Connected to SQLite database successfully")
 	}
 
 	DB.SetMaxOpenConns(25)                 // 最大打开的连接数
 	DB.SetMaxIdleConns(25)                 // 最大空闲连接数
 	DB.SetConnMaxLifetime(5 * time.Minute) // 连接最长存活时间
 
-	// Test database connection
-	if err := DB.Ping(); err != nil {
-		log.Printf("Error pinging database: %v", err)
-		return nil, err
+	if err = DB.Ping(); err != nil {
+		return nil, fmt.Errorf("Error pinging database: %v\n", err)
 	}
-	log.Println("Database connection successful")
+	logrus.Infof("Database connection successful")
 
 	return DB, nil
 }
