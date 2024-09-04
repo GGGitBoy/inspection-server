@@ -168,21 +168,18 @@ func DeleteTask() http.Handler {
 					err = schedule.RemoveSchedule(t)
 					if err != nil {
 						logrus.Errorf("Failed to remove schedule for task with ID %s: %v", t.ID, err)
-						common.HandleError(rw, http.StatusInternalServerError, err)
 						continue
 					}
 
 					err = db.DeleteTask(t.ID)
 					if err != nil {
 						logrus.Errorf("Failed to delete task with ID %s: %v", t.ID, err)
-						common.HandleError(rw, http.StatusInternalServerError, err)
 						continue
 					}
 
 					report, err := db.GetReport(t.ReportID)
 					if err != nil {
 						logrus.Errorf("Failed to get report with ID %s: %v", t.ReportID, err)
-						common.HandleError(rw, http.StatusInternalServerError, err)
 						continue
 					}
 
@@ -190,14 +187,12 @@ func DeleteTask() http.Handler {
 					err = common.DeleteFile(filePath)
 					if err != nil {
 						logrus.Errorf("Failed to delete report pdf file %s: %v", t.ReportID, err)
-						common.HandleError(rw, http.StatusInternalServerError, err)
 						continue
 					}
 
 					err = db.DeleteReport(t.ReportID)
 					if err != nil {
 						logrus.Errorf("Failed to delete report for task ID %s: %v", t.ID, err)
-						common.HandleError(rw, http.StatusInternalServerError, err)
 						continue
 					}
 				}
@@ -240,7 +235,6 @@ func DeleteTask() http.Handler {
 			report, err := db.GetReport(task.ReportID)
 			if err != nil {
 				logrus.Errorf("Failed to get report with ID %s: %v", task.ReportID, err)
-				common.HandleError(rw, http.StatusInternalServerError, err)
 				return
 			}
 
@@ -248,14 +242,12 @@ func DeleteTask() http.Handler {
 			err = common.DeleteFile(filePath)
 			if err != nil {
 				logrus.Errorf("Failed to delete report pdf file %s: %v", task.ReportID, err)
-				common.HandleError(rw, http.StatusInternalServerError, err)
 				return
 			}
 
 			err = db.DeleteReport(task.ReportID)
 			if err != nil {
 				logrus.Errorf("Failed to delete report for task ID %s: %v", taskID, err)
-				common.HandleError(rw, http.StatusInternalServerError, err)
 				return
 			}
 		}
