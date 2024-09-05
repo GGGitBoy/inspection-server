@@ -59,12 +59,10 @@ func PrintReport() http.Handler {
 			p := pdfPrint.NewPrint()
 			p.URL = "http://127.0.0.1/#/inspection/result-pdf-view/" + report.ID
 			p.ReportTime = report.Global.ReportTime
-			err = pdfPrint.FullScreenshot(p, "Print")
-			if err != nil {
-				logrus.Errorf("Failed to print pdf for report with ID %s: %v", reportID, err)
-				common.HandleError(rw, http.StatusInternalServerError, fmt.Errorf("Failed to print pdf for report with ID %s: %v\n", reportID, err))
-				return
-			}
+			go pdfPrint.FullScreenshot(p, "Print")
+			logrus.Errorf("Failed to get pdf for report with ID %s: %v", reportID, err)
+			common.HandleError(rw, http.StatusNotFound, fmt.Errorf("Failed to get pdf for report with ID %s: %v\n", reportID, err))
+			return
 		}
 
 		file, err := os.Open(filePath)
@@ -95,6 +93,5 @@ func PrintReport() http.Handler {
 			common.HandleError(rw, http.StatusInternalServerError, err)
 			return
 		}
-
 	})
 }
