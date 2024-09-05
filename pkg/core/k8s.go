@@ -214,6 +214,7 @@ func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig, taskName stri
 
 	return nodeNodeArray, nodeInspections, nil
 }
+
 func ExecToPodThroughAPI(clientset *kubernetes.Clientset, config *rest.Config, command string, commands []string, namespace, podName, containerName, taskName string) (string, string, error) {
 	logrus.Infof("[%s] Starting exec to pod: %s, namespace: %s, container: %s", taskName, podName, namespace, containerName)
 	req := clientset.CoreV1().RESTClient().
@@ -320,7 +321,7 @@ func GetWorkloads(client *apis.Client, workloadConfig *apis.WorkloadConfig, task
 	}
 
 	for _, ds := range workloadConfig.Daemonset {
-		logrus.Debugf("[%s] Inspecting DaemonSet: %s in namespace %s", ds.Name, ds.Namespace)
+		logrus.Debugf("[%s] Inspecting DaemonSet: %s in namespace %s", taskName, ds.Name, ds.Namespace)
 		daemonSet, err := client.Clientset.AppsV1().DaemonSets(ds.Namespace).Get(context.TODO(), ds.Name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -474,7 +475,7 @@ func GetPod(regexpString, namespace string, set labels.Set, clientset *kubernete
 		return nil, fmt.Errorf("Error listing pods in namespace %s: %v\n", namespace, err)
 	}
 
-	line := int64(10)
+	line := int64(50)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
