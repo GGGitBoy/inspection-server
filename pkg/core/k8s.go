@@ -63,6 +63,7 @@ func GetHealthCheck(client *apis.Client, clusterName, taskName string) (*apis.He
 		var commands []string
 		for _, c := range Commands {
 			commands = append(commands, c.Description+": "+c.Command)
+			logrus.Infof("[%s] add command description: %s, command: %s", taskName, c.Description, c.Command)
 		}
 
 		command := "/opt/inspection/inspection.sh"
@@ -88,18 +89,27 @@ func GetHealthCheck(client *apis.Client, clusterName, taskName string) (*apis.He
 
 			switch r.Description {
 			case "API Server Ready Check":
-				healthCheck.APIServerReady = &r
+				healthCheck.APIServerReady = getCommandCheckResult(r)
 			case "API Server Live Check":
-				healthCheck.APIServerLive = &r
+				healthCheck.APIServerLive = getCommandCheckResult(r)
 			case "ETCD Ready Check":
-				healthCheck.EtcdReady = &r
+				healthCheck.EtcdReady = getCommandCheckResult(r)
 			case "ETCD Live Check":
-				healthCheck.EtcdLive = &r
+				healthCheck.EtcdLive = getCommandCheckResult(r)
 			}
 		}
 	}
 
 	return healthCheck, coreInspections, nil
+}
+
+func getCommandCheckResult(r apis.CommandCheckResult) *apis.CommandCheckResult {
+	return &apis.CommandCheckResult{
+		Description: r.Description,
+		Command:     r.Command,
+		Response:    r.Response,
+		Error:       r.Error,
+	}
 }
 
 func GetNodes(client *apis.Client, nodesConfig []*apis.NodeConfig, taskName string) ([]*apis.Node, []*apis.Inspection, error) {
